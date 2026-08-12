@@ -1,34 +1,38 @@
+// Prisma schema for the standalone finance tracker.
+// Maps to the same data model as the in-Claude artifact version.
+// Run `npm run prisma:push` after setting DATABASE_URL to create these tables.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // Supabase, Neon, Railway, etc. all work here
   url      = env("DATABASE_URL")
 }
 
 model Category {
   id     String @id @default(cuid())
   name   String
-  type   String
+  type   String // "income" | "expense"
   @@unique([name, type])
 }
 
 model Transaction {
   id             String   @id @default(cuid())
-  type           String
+  type           String   // "income" | "expense"
   date           DateTime
   category       String
   amount         Float
   note           String?
   vendor         String?
-  paymentMethod  String   @default("cash")
+  paymentMethod  String   @default("cash") // "cash" | "debit" | "card" | "check"
   cardId         String?
   bankAccountId  String?
   checkNumber    String?
   taxRate        Float?
   taxAmount      Float?
-  receiptImage   String?
+  receiptImage   String?  // base64 or a URL if you move to real file storage
   splitGroupId   String?
   splitIndex     Int?
   splitCount     Int?
@@ -92,14 +96,15 @@ model Goal {
   savedAmount  Float     @default(0)
 }
 
+// --- Holdings: the piece that gets auto-updated by the cron job ---
 model Holding {
   id           String          @id @default(cuid())
-  name         String
-  symbol       String?
-  shares       Float           @default(0)
+  name         String          // e.g. "S&P 500 Index Fund"
+  symbol       String?         // e.g. "VOO" — used by the cron job to look up price. Leave blank for manual-only tracking.
+  shares       Float           @default(0) // computed from contributions ÷ price-at-purchase, when symbol is set
   currentValue Float           @default(0)
-  entries      HoldingEntry[]
-  history      HoldingValue[]
+  entries      HoldingEntry[]  // contributions (money put in)
+  history      HoldingValue[]  // value over time, appended by cron + manual updates
 }
 
 model HoldingEntry {
@@ -116,7 +121,7 @@ model HoldingValue {
   holdingId String
   date      DateTime
   value     Float
-  source    String   @default("manual")
+  source    String   @default("manual") // "manual" | "cron"
 }
 
 model Recurring {
@@ -124,7 +129,7 @@ model Recurring {
   type          String
   category      String
   amount        Float
-  frequency     String
+  frequency     String    // "weekly" | "monthly" | "yearly"
   startDate     DateTime
   lastGenerated DateTime?
   paused        Boolean   @default(false)
