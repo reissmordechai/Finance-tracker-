@@ -1,23 +1,26 @@
 import { cookies } from "next/headers";
-import crypto from "crypto";
 
 const COOKIE_NAME = "finance_session";
 
-// Simple single-user auth: one shared password (APP_PASSWORD env var).
-// The cookie stores a hash of the password + a server-only pepper, so it
-// can't be forged without knowing APP_PASSWORD.
-function expectedToken() {
+// Uses the Web Crypto API (globalThis.crypto) instead of Node's "crypto"
+// module — this works in both the normal Node runtime AND Vercel's Edge
+// runtime (which middleware.ts runs on and does NOT support Node's crypto).
+async function expectedToken(): Promise<string> {
   const pepper = process.env.AUTH_SECRET || "change-me";
   const password = process.env.APP_PASSWORD || "";
-  return crypto.createHash("sha256").update(password + pepper).digest("hex");
+  const data = new TextEncoder().encode(password + pepper);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export function checkPassword(input: string): boolean {
   return input === (process.env.APP_PASSWORD || "");
 }
 
-export function setSessionCookie() {
-  cookies().set(COOKIE_NAME, expectedToken(), {
+export async function setSessionCookie() {
+  cookies().set(COOKIE_NAME, await expectedToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -30,10 +33,11 @@ export function clearSessionCookie() {
   cookies().delete(COOKIE_NAME);
 }
 
-export function isAuthenticated(): boolean {
+export async function isAuthenticated(): Promise<boolean> {
   const cookie = cookies().get(COOKIE_NAME);
   if (!cookie) return false;
-  return cookie.value === expectedToken();
+  return cookie.value === (await expectedToken());
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;
+export const getExpectedToken = expectedToken;

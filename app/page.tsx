@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
+// Force this page to render per-request instead of being pre-built at deploy
+// time — without this, Vercel tries to query the database *during the build
+// itself*, which is unreliable and was causing our earlier failures.
+export const dynamic = "force-dynamic";
+
 export default async function Dashboard() {
   const holdings = await prisma.holding.findMany();
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
