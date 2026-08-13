@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "./ThemeToggle";
 
 const links = [
   { href: "/", label: "Home" },
@@ -13,6 +14,7 @@ const links = [
   { href: "/vendors", label: "Vendors" },
   { href: "/reports", label: "Reports" },
   { href: "/calculator", label: "Calculator" },
+  { href: "/search", label: "Search" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -23,7 +25,10 @@ export default function Nav() {
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <div className="app-title">Finance Tracker</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="app-title">Finance Tracker</div>
+          <ThemeToggle />
+        </div>
         <nav className="app-nav">
           {links.map((l) => {
             const active = pathname === l.href || (l.href === "/holdings" && pathname?.startsWith("/holdings"));

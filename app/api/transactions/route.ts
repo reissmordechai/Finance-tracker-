@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const trash = req.nextUrl.searchParams.get("trash") === "1";
   const txns = await prisma.transaction.findMany({
+    where: trash ? { deletedAt: { not: null } } : { deletedAt: null },
     include: { items: true },
     orderBy: { date: "desc" },
   });
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
       taxRate: body.tax?.rate ?? null,
       taxAmount: body.tax?.amount ?? null,
       receiptImage: body.receiptImage || null,
+      tags: body.tags || null,
       items: body.items?.length
         ? { create: body.items.map((it: any) => ({ name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice })) }
         : undefined,

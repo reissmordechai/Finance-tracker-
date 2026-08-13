@@ -9,9 +9,13 @@ export default function HoldingsAccountsPage() {
   const [account, setAccount] = useState("");
   const [symbol, setSymbol] = useState("");
   const [amount, setAmount] = useState("");
+  const [benchmark, setBenchmark] = useState<number | null>(null);
 
   const load = () => fetch("/api/holdings").then((r) => r.json()).then(setHoldings);
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    fetch("/api/benchmark").then((r) => r.json()).then((d) => setBenchmark(d.price));
+  }, []);
 
   const add = async () => {
     const amt = parseFloat(amount);
@@ -33,6 +37,9 @@ export default function HoldingsAccountsPage() {
   });
 
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
+  const totalInvested = holdings.reduce((s: number, h: any) => s + (h.entries || []).reduce((a: number, e: any) => a + e.amount, 0), 0);
+  const overallGain = totalValue - totalInvested;
+  const overallPct = totalInvested ? (overallGain / totalInvested) * 100 : 0;
 
   return (
     <main className="page">
@@ -42,10 +49,18 @@ export default function HoldingsAccountsPage() {
         Tap an account to see what's in it.
       </p>
 
-      <div className="card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="card" style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, color: "#8A8370" }}>Total across all accounts</div>
           <div className="num" style={{ fontSize: 26, fontWeight: 700, color: "#0F3D2E" }}>${totalValue.toFixed(2)}</div>
+          {totalInvested > 0 && (
+            <div className="num" style={{ fontSize: 12.5, color: overallGain >= 0 ? "#2F6B4F" : "#9C4221", marginTop: 2 }}>
+              {overallGain >= 0 ? "+" : ""}${overallGain.toFixed(2)} ({overallPct.toFixed(1)}%) overall
+            </div>
+          )}
+          {benchmark && (
+            <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 4 }}>S&amp;P 500 (SPY) today: ${benchmark.toFixed(2)} — a rough reference, not a same-period comparison</div>
+          )}
         </div>
         <button className="btn" onClick={() => setShowAdd((s) => !s)}>{showAdd ? "Cancel" : "+ Add holding"}</button>
       </div>

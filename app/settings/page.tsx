@@ -1,15 +1,28 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [label, setLabel] = useState("");
   const [rate, setRate] = useState("");
 
-  const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
-  useEffect(() => { load(); }, []);
+  const [general, setGeneral] = useState<any>(null);
+  const [currency, setCurrency] = useState("$");
+  const [location, setLocation] = useState("");
+  const [savedMsg, setSavedMsg] = useState(false);
 
-  const add = async () => {
+  const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
+  useEffect(() => {
+    load();
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => {
+      setGeneral(d);
+      setCurrency(d.currency || "$");
+      setLocation(d.location || "");
+    });
+  }, []);
+
+  const addProfile = async () => {
     if (!label.trim() || !rate) return;
     await fetch("/api/settings/taxprofiles", {
       method: "POST",
@@ -20,9 +33,19 @@ export default function SettingsPage() {
     load();
   };
 
-  const remove = async (id: string) => {
+  const removeProfile = async (id: string) => {
     await fetch(`/api/settings/taxprofiles/${id}`, { method: "DELETE" });
     load();
+  };
+
+  const saveGeneral = async () => {
+    await fetch("/api/settings/general", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currency, location }),
+    });
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 1800);
   };
 
   return (
@@ -30,22 +53,47 @@ export default function SettingsPage() {
       <h1 style={{ color: "#0F3D2E" }}>Settings</h1>
 
       <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>General</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div>
+            <label style={{ fontSize: 11, color: "#8A8370" }}>Currency symbol</label>
+            <input value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 80, display: "block" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "#8A8370" }}>Location (optional)</label>
+            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Monsey, NY" style={{ width: 200, display: "block" }} />
+          </div>
+          <button className="btn" onClick={saveGeneral}>{savedMsg ? "Saved ✓" : "Save"}</button>
+        </div>
+        <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 8 }}>Note: display currently shows $ throughout the app regardless of this setting — this saves your preference for future use.</div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 10 }}>Sales tax profiles</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label, e.g. NY" style={{ flex: 1, minWidth: 140 }} />
           <input type="number" step="0.001" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Rate %" style={{ width: 110 }} />
-          <button className="btn" onClick={add}>Add</button>
+          <button className="btn" onClick={addProfile}>Add</button>
         </div>
         {profiles.map((p) => (
           <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
             <span>{p.label}</span>
             <span>
               <span className="num">{p.rate}%</span>
-              <button onClick={() => remove(p.id)} style={{ border: "none", background: "none", color: "#B0A88E", marginLeft: 10 }}>✕</button>
+              <button onClick={() => removeProfile(p.id)} style={{ border: "none", background: "none", color: "#B0A88E", marginLeft: 10 }}>✕</button>
             </span>
           </div>
         ))}
         {profiles.length === 0 && <div style={{ color: "#8A8370" }}>No tax profiles yet.</div>}
+      </div>
+
+      <div className="card">
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>More</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          <Link href="/tags" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Manage Tags</Link>
+          <Link href="/trash" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Trash (deleted transactions)</Link>
+          <a href="/api/export" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Export all transactions (CSV)</a>
+        </div>
       </div>
     </main>
   );

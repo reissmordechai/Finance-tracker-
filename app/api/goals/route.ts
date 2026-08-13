@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-  const goals = await prisma.goal.findMany();
+  const goals = await prisma.goal.findMany({ include: { contributions: { orderBy: { date: "asc" } } } });
   return NextResponse.json(goals);
 }
 

@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const budget = await prisma.budget.upsert({
     where: { category: body.category },
-    update: { limit: body.limit },
-    create: { category: body.category, limit: body.limit },
+    update: { limit: body.limit, rollover: !!body.rollover },
+    create: { category: body.category, limit: body.limit, rollover: !!body.rollover },
   });
   return NextResponse.json(budget);
 }

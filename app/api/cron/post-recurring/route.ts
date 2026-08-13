@@ -52,5 +52,9 @@ export async function GET(req: NextRequest) {
     if (posted > 0) results.push({ id: rule.id, category: rule.category, posted });
   }
 
-  return NextResponse.json({ ok: true, checkedAt: today.toISOString(), results });
+  // Empty the trash — permanently remove anything soft-deleted more than 30 days ago
+  const cutoff = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const purged = await prisma.transaction.deleteMany({ where: { deletedAt: { lt: cutoff } } });
+
+  return NextResponse.json({ ok: true, checkedAt: today.toISOString(), results, trashPurged: purged.count });
 }

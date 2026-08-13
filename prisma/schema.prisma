@@ -37,6 +37,8 @@ model Transaction {
   splitIndex     Int?
   splitCount     Int?
   recurringId    String?
+  tags           String?  // comma-separated, e.g. "tax deductible,reimbursable"
+  deletedAt      DateTime? // soft-delete — set instead of removing, so it can be restored from Trash
   items          Item[]
   createdAt      DateTime @default(now())
 }
@@ -83,9 +85,10 @@ model Vendor {
 }
 
 model Budget {
-  id       String @id @default(cuid())
-  category String @unique
+  id       String  @id @default(cuid())
+  category String  @unique
   limit    Float
+  rollover Boolean @default(false)
 }
 
 model Goal {
@@ -94,6 +97,15 @@ model Goal {
   targetAmount Float
   targetDate   DateTime?
   savedAmount  Float     @default(0)
+  contributions GoalContribution[]
+}
+
+model GoalContribution {
+  id     String   @id @default(cuid())
+  goal   Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  goalId String
+  date   DateTime
+  amount Float
 }
 
 // --- Holdings: the piece that gets auto-updated by the cron job ---
@@ -145,6 +157,7 @@ model Recurring {
 model Settings {
   id                  String @id @default("singleton")
   location            String @default("")
+  currency            String @default("$")
   defaultTaxProfileId String?
 }
 

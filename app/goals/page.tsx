@@ -53,6 +53,22 @@ export default function GoalsPage() {
         {goals.map((g) => {
           const pct = Math.min(100, (g.savedAmount / g.targetAmount) * 100);
           const reached = g.savedAmount >= g.targetAmount;
+
+          // Projection: average contribution per day since the first one, projected forward
+          const contributions = g.contributions || [];
+          let projectionText = "";
+          if (!reached && contributions.length >= 2) {
+            const first = new Date(contributions[0].date);
+            const daysElapsed = Math.max(1, (Date.now() - first.getTime()) / 86400000);
+            const perDay = g.savedAmount / daysElapsed;
+            if (perDay > 0) {
+              const remaining = g.targetAmount - g.savedAmount;
+              const daysLeft = Math.ceil(remaining / perDay);
+              const projectedDate = new Date(Date.now() + daysLeft * 86400000);
+              projectionText = `At your current pace (~$${perDay.toFixed(2)}/day), you'll reach this around ${projectedDate.toLocaleDateString()}.`;
+            }
+          }
+
           return (
             <div className="card" key={g.id}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -63,6 +79,7 @@ export default function GoalsPage() {
               <div style={{ height: 8, background: "#EFEADC", borderRadius: 4, overflow: "hidden", marginTop: 4 }}>
                 <div style={{ width: `${pct}%`, height: "100%", background: reached ? "#2F6B4F" : "#B8863E" }} />
               </div>
+              {projectionText && <div style={{ fontSize: 11.5, color: "#B0A88E", marginTop: 8 }}>{projectionText}</div>}
               <button className="btn-outline" style={{ marginTop: 10 }} onClick={() => setFundingId(fundingId === g.id ? null : g.id)}>
                 {fundingId === g.id ? "Cancel" : "Add funds"}
               </button>

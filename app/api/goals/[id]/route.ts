@@ -11,6 +11,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { id: params.id },
         data: { savedAmount: Math.max(0, goal.savedAmount + body.amount) },
       });
+      await prisma.goalContribution.create({
+        data: { goalId: params.id, date: new Date(), amount: body.amount },
+      });
     }
   } else {
     await prisma.goal.update({
@@ -22,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
   }
 
-  const updated = await prisma.goal.findUnique({ where: { id: params.id } });
+  const updated = await prisma.goal.findUnique({ where: { id: params.id }, include: { contributions: true } });
   return NextResponse.json(updated);
 }
 
