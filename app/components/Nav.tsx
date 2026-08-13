@@ -12,6 +12,7 @@ const links = [
   { href: "/recurring", label: "Recurring" },
   { href: "/vendors", label: "Vendors" },
   { href: "/reports", label: "Reports" },
+  { href: "/calculator", label: "Calculator" },
   { href: "/settings", label: "Settings" },
 ];
 
