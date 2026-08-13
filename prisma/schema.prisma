@@ -100,6 +100,7 @@ model Goal {
 model Holding {
   id           String          @id @default(cuid())
   name         String          // e.g. "S&P 500 Index Fund"
+  account      String?         // e.g. "Fidelity IRA", "Fidelity Brokerage" — lets you track the same fund separately per account
   symbol       String?         // e.g. "VOO" — used by the cron job to look up price. Leave blank for manual-only tracking.
   shares       Float           @default(0) // computed from contributions ÷ price-at-purchase, when symbol is set
   currentValue Float           @default(0)

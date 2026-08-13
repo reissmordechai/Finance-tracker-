@@ -12,7 +12,7 @@ export async function GET() {
   return NextResponse.json(holdings);
 }
 
-// body: { name, symbol?, amount, date }
+// body: { name, account?, symbol?, amount, date }
 // If a symbol is given, we look up today's price and record how many
 // "shares" that contribution bought — that's what lets the cron job later
 // compute value = shares × current price instead of just overwriting a number.
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   const holding = await prisma.holding.create({
     data: {
       name: body.name,
+      account: body.account || null,
       symbol: body.symbol || null,
       shares,
       currentValue: body.amount,
