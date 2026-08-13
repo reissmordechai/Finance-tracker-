@@ -132,6 +132,7 @@ model Recurring {
   amount        Float
   frequency     String    // "weekly" | "monthly" | "yearly"
   startDate     DateTime
+  endDate       DateTime?
   lastGenerated DateTime?
   paused        Boolean   @default(false)
   paymentMethod String    @default("cash")
@@ -151,4 +152,10 @@ model TaxProfile {
   id    String @id @default(cuid())
   label String
   rate  Float
+}
+
+model NetWorthSnapshot {
+  id    String   @id @default(cuid())
+  date  DateTime
+  value Float
 }

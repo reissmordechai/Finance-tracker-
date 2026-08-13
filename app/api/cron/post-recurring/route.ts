@@ -1,0 +1,56 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+function addInterval(date: Date, freq: string): Date {
+  const d = new Date(date.getTime());
+  if (freq === "weekly") d.setDate(d.getDate() + 7);
+  else if (freq === "yearly") d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1); // monthly default
+  return d;
+}
+
+// Called daily by Vercel Cron. Walks each active recurring rule forward from
+// its last posted date (or start date) and creates a real Transaction for
+// every occurrence that's now due — stopping at today, and at the rule's
+// end date if one is set.
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const today = new Date();
+  const rules = await prisma.recurring.findMany({ where: { paused: false } });
+  const results: any[] = [];
+
+  for (const rule of rules) {
+    let cursor = rule.lastGenerated ? addInterval(rule.lastGenerated, rule.frequency) : new Date(rule.startDate);
+    let posted = 0;
+    let guard = 0;
+
+    while (cursor <= today && (!rule.endDate || cursor <= rule.endDate) && guard < 500) {
+      await prisma.transaction.create({
+        data: {
+          type: rule.type,
+          date: cursor,
+          category: rule.category,
+          amount: rule.amount,
+          note: rule.note || "",
+          paymentMethod: rule.paymentMethod,
+          cardId: rule.paymentMethod === "card" ? rule.cardId : null,
+          bankAccountId: rule.paymentMethod === "debit" ? rule.bankAccountId : null,
+          checkNumber: rule.checkNumber,
+          recurringId: rule.id,
+        },
+      });
+      await prisma.recurring.update({ where: { id: rule.id }, data: { lastGenerated: cursor } });
+      posted++;
+      cursor = addInterval(cursor, rule.frequency);
+      guard++;
+    }
+
+    if (posted > 0) results.push({ id: rule.id, category: rule.category, posted });
+  }
+
+  return NextResponse.json({ ok: true, checkedAt: today.toISOString(), results });
+}

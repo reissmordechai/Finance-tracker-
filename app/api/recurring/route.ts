@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
       amount: body.amount,
       frequency: body.frequency,
       startDate: new Date(body.startDate),
+      endDate: body.endDate ? new Date(body.endDate) : null,
       paymentMethod: body.paymentMethod || "cash",
       cardId: body.cardId || null,
       bankAccountId: body.bankAccountId || null,

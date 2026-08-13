@@ -9,6 +9,7 @@ export default function RecurringPage() {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState("monthly");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState("");
 
   const load = () => fetch("/api/recurring").then((r) => r.json()).then(setRules);
   useEffect(() => { load(); }, []);
@@ -18,9 +19,9 @@ export default function RecurringPage() {
     await fetch("/api/recurring", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, category, amount: parseFloat(amount), frequency, startDate }),
+      body: JSON.stringify({ type, category, amount: parseFloat(amount), frequency, startDate, endDate: endDate || null }),
     });
-    setCategory(""); setAmount("");
+    setCategory(""); setAmount(""); setEndDate("");
     load();
   };
 
@@ -42,7 +43,10 @@ export default function RecurringPage() {
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
       <Nav />
       <h1 style={{ color: "#0F3D2E" }}>Recurring Entries</h1>
-      <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>Rent, subscriptions, and anything else that repeats. Note: automatic posting into Transactions isn't wired up in this version yet — this tracks the schedule for now.</p>
+      <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
+        Rent, subscriptions, and anything else that repeats. A daily automatic check posts these into Transactions on their own —
+        set an end date if it should eventually stop (e.g. a lease that ends).
+      </p>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 110 }}>
@@ -56,17 +60,27 @@ export default function RecurringPage() {
           <option value="monthly">Monthly</option>
           <option value="yearly">Yearly</option>
         </select>
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} />
-        <button className="btn" onClick={add}>Save</button>
+        <div>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>Start date</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150, display: "block" }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>End date (optional)</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150, display: "block" }} />
+        </div>
+        <button className="btn" onClick={add} style={{ alignSelf: "flex-end" }}>Save</button>
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
         {rules.map((r) => (
           <div className="card" key={r.id} style={{ opacity: r.paused ? 0.6 : 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{r.category} <span style={{ fontSize: 11, color: "#8A8370" }}>({r.frequency})</span></div>
-                <div style={{ fontSize: 12, color: "#8A8370" }}>Starts {r.startDate.slice(0, 10)}</div>
+                <div style={{ fontSize: 12, color: "#8A8370" }}>
+                  {r.startDate.slice(0, 10)}{r.endDate ? ` → ${r.endDate.slice(0, 10)}` : " → ongoing"}
+                  {r.lastGenerated && ` · last posted ${r.lastGenerated.slice(0, 10)}`}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span className="num" style={{ fontWeight: 700, color: r.type === "income" ? "#2F6B4F" : "#9C4221" }}>

@@ -29,5 +29,21 @@ export async function GET(req: NextRequest) {
     results.push({ id: h.id, name: h.name, symbol: h.symbol, price, newValue, updated: true });
   }
 
-  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), results });
+  // Also snapshot net worth today (bank + all holdings − card debt), so the
+  // dashboard can show a trend over time instead of just today's number.
+  const allHoldings = await prisma.holding.findMany();
+  const totalHoldings = allHoldings.reduce((s, h) => s + h.currentValue, 0);
+  const bankAccounts = await prisma.bankAccount.findMany();
+  const totalBank = bankAccounts.reduce((s, a) => s + a.balance, 0);
+  const cards = await prisma.card.findMany({ include: { payments: true } });
+  const transactions = await prisma.transaction.findMany();
+  const cardDebt = cards.reduce((sum, c) => {
+    const charged = transactions.filter((t) => t.type === "expense" && t.cardId === c.id).reduce((s, t) => s + t.amount, 0);
+    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+    return sum + (charged - paid);
+  }, 0);
+  const netWorth = totalBank + totalHoldings - cardDebt;
+  await prisma.netWorthSnapshot.create({ data: { date: new Date(), value: netWorth } });
+
+  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), results, netWorth });
 }
