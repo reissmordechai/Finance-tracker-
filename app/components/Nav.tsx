@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Home" },
   { href: "/transactions", label: "Transactions" },
   { href: "/cards", label: "Cards" },
   { href: "/holdings", label: "Holdings" },
@@ -18,21 +18,23 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
+  if (pathname === "/login") return null;
+
   return (
-    <nav style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-      {links.map((l) => {
-        const active = pathname === l.href;
-        return (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={active ? "btn" : "btn-outline"}
-            style={{ textDecoration: "none", fontSize: 12.5, padding: "7px 12px" }}
-          >
-            {l.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <header className="app-header">
+      <div className="app-header-inner">
+        <div className="app-title">Finance Tracker</div>
+        <nav className="app-nav">
+          {links.map((l) => {
+            const active = pathname === l.href || (l.href === "/holdings" && pathname?.startsWith("/holdings"));
+            return (
+              <Link key={l.href} href={l.href} className={active ? "active" : ""}>
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
   );
 }

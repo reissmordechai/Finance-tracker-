@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function TransactionsPage() {
   const [txns, setTxns] = useState<any[]>([]);
@@ -49,8 +48,7 @@ export default function TransactionsPage() {
   const filtersActive = fCategory || fFrom || fTo || fMinAmount || fMaxAmount;
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ color: "#0F3D2E" }}>Transactions</h1>
         <a href="/api/export" className="btn-outline" style={{ textDecoration: "none", height: "fit-content" }}>Export CSV</a>

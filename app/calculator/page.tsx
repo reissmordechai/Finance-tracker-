@@ -1,13 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function CalculatorPage() {
   const [mode, setMode] = useState<"keypad" | "ledger">("keypad");
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ color: "#0F3D2E" }}>Calculator</h1>
         <div style={{ display: "flex", gap: 4 }}>

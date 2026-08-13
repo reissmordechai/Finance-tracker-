@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Nav from "../components/Nav";
 
 export default function HoldingsAccountsPage() {
   const [holdings, setHoldings] = useState<any[]>([]);
@@ -36,8 +35,7 @@ export default function HoldingsAccountsPage() {
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Holdings</h1>
       <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
         Set money aside for different things — a down payment, a child's wedding fund, anything — each as its own "account."
@@ -70,7 +68,7 @@ export default function HoldingsAccountsPage() {
             const subtotal = list.reduce((s, h) => s + h.currentValue, 0);
             return (
               <Link key={acct} href={`/holdings/${encodeURIComponent(acct)}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                <div className="card clickable" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                   <div>
                     <div style={{ fontWeight: 700, color: "#0F3D2E" }}>{acct}</div>
                     <div style={{ fontSize: 12, color: "#8A8370" }}>{list.length} holding{list.length !== 1 ? "s" : ""}</div>

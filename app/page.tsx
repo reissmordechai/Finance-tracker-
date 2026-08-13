@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import Nav from "./components/Nav";
 import LineChart from "./components/LineChart";
 
 // Force this page to render per-request instead of being pre-built at deploy
@@ -42,9 +41,8 @@ export default async function Dashboard() {
   }).filter((b) => b.pct >= 80);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Finance Tracker</h1>
-      <Nav />
 
       {cardsDue.length > 0 && (
         <div className="card" style={{ marginBottom: 16, background: "#FBF3E1", borderColor: "#E8D2A0" }}>

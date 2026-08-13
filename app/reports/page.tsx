@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function ReportsPage() {
   const [txns, setTxns] = useState<any[]>([]);
@@ -19,8 +18,7 @@ export default function ReportsPage() {
   const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Reports</h1>
 
       <div className="card" style={{ marginBottom: 16 }}>

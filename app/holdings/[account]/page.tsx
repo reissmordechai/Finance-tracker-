@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Nav from "../../components/Nav";
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -40,8 +39,7 @@ export default function AccountDetailPage() {
   const total = holdings.reduce((s, h) => s + h.currentValue, 0);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <Link href="/holdings" style={{ color: "#B8863E", fontSize: 13 }}>&larr; All accounts</Link>
       <h1 style={{ color: "#0F3D2E" }}>{accountName}</h1>
 

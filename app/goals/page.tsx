@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
@@ -41,8 +40,7 @@ export default function GoalsPage() {
   };
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Goals</h1>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>

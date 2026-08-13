@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -27,8 +26,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Settings</h1>
 
       <div className="card" style={{ marginBottom: 16 }}>

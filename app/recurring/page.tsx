@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
 
 export default function RecurringPage() {
   const [rules, setRules] = useState<any[]>([]);
@@ -40,8 +39,7 @@ export default function RecurringPage() {
   };
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Nav />
+    <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Recurring Entries</h1>
       <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
         Rent, subscriptions, and anything else that repeats. A daily automatic check posts these into Transactions on their own —
