@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Nav from "../components/Nav";
 
 export default function HoldingsPage() {
   const [holdings, setHoldings] = useState<any[]>([]);
@@ -30,7 +30,7 @@ export default function HoldingsPage() {
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Link href="/" style={{ color: "#B8863E", fontSize: 13 }}>&larr; Dashboard</Link>
+      <Nav />
       <h1 style={{ color: "#0F3D2E" }}>Holdings</h1>
       <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
         Add a symbol (like <code>VOO</code> for an S&amp;P 500 ETF) and the daily cron job will keep the value current on its own.

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Nav from "../components/Nav";
 
 export default function TransactionsPage() {
   const [txns, setTxns] = useState<any[]>([]);
@@ -31,7 +31,7 @@ export default function TransactionsPage() {
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <Link href="/" style={{ color: "#B8863E", fontSize: 13 }}>&larr; Dashboard</Link>
+      <Nav />
       <h1 style={{ color: "#0F3D2E" }}>Transactions</h1>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
