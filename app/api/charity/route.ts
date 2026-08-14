@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
       kind: body.kind || "cash", // "cash" | "time" | "other"
       amount: body.amount,
       note: body.note || null,
+      transactionId: body.transactionId || null,
     },
   });
   return NextResponse.json(entry);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import LineChart from "./components/LineChart";
+import BankAccountsCard from "./components/BankAccountsCard";
 
 // Force this page to render per-request instead of being pre-built at deploy
 // time — without this, Vercel tries to query the database *during the build
@@ -86,6 +87,8 @@ export default async function Dashboard() {
           <div className="num" style={{ fontSize: 22, fontWeight: 700, color: "#9C4221" }}>${charityBalance.toFixed(2)}</div>
         </div>
       )}
+
+      <BankAccountsCard />
 
       <div className="card">
         <div style={{ fontWeight: 600, marginBottom: 10 }}>Recent transactions</div>

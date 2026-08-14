@@ -26,6 +26,7 @@ function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string>
 
 export default function TransactionsPage() {
   const [txns, setTxns] = useState<any[]>([]);
+  const [charityEntries, setCharityEntries] = useState<any[]>([]);
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("Groceries");
   const [amount, setAmount] = useState("");
@@ -51,7 +52,10 @@ export default function TransactionsPage() {
   const [fMaxAmount, setFMaxAmount] = useState("");
   const [fTag, setFTag] = useState("");
 
-  const load = () => fetch("/api/transactions").then((r) => r.json()).then(setTxns);
+  const load = () => {
+    fetch("/api/transactions").then((r) => r.json()).then(setTxns);
+    fetch("/api/charity").then((r) => r.json()).then(setCharityEntries);
+  };
   useEffect(() => {
     load();
     fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
@@ -72,17 +76,17 @@ export default function TransactionsPage() {
   const add = async () => {
     const amt = parseFloat(amount);
     if (!amt) return;
-    await fetch("/api/transactions", {
+    const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, category, amount: amt, date, tags: tags || null, receiptImage }),
-    });
+    }).then((r) => r.json());
 
     if (type === "income" && charityEligible && charityAmount > 0) {
       await fetch("/api/charity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "owed", amount: Math.round(charityAmount * 100) / 100, date, note: `${charityPct}% of ${category} income` }),
+        body: JSON.stringify({ type: "owed", amount: Math.round(charityAmount * 100) / 100, date, note: `${charityPct}% of ${category} income`, transactionId: created.id }),
       });
     }
     if (type === "expense" && isCharityPayment) {
@@ -90,7 +94,7 @@ export default function TransactionsPage() {
       await fetch("/api/charity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "given", kind: charityGiveKind, amount: giveAmt, date, note: `Paid via ${category}` }),
+        body: JSON.stringify({ type: "given", kind: charityGiveKind, amount: giveAmt, date, note: `Paid via ${category}`, transactionId: created.id }),
       });
     }
 
@@ -118,6 +122,9 @@ export default function TransactionsPage() {
 
   const clearFilters = () => { setFCategory(""); setFFrom(""); setFTo(""); setFMinAmount(""); setFMaxAmount(""); setFTag(""); };
   const filtersActive = fCategory || fFrom || fTo || fMinAmount || fMaxAmount || fTag;
+
+  const charityByTxn: Record<string, any> = {};
+  charityEntries.forEach((c) => { if (c.transactionId) charityByTxn[c.transactionId] = c; });
 
   return (
     <main className="page">
@@ -217,7 +224,14 @@ export default function TransactionsPage() {
               )}
               <div>
                 <div>{t.category}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
-                <div style={{ fontSize: 11, color: "#8A8370" }}>{t.date.slice(0, 10)}</div>
+                <div style={{ fontSize: 11, color: "#8A8370" }}>
+                  {t.date.slice(0, 10)}
+                  {charityByTxn[t.id] && (
+                    <span className="pill" style={{ marginLeft: 6, background: charityByTxn[t.id].type === "owed" ? "#F0EAD8" : "#E3EDE7" }}>
+                      Charity {charityByTxn[t.id].type === "owed" ? "set aside" : "given"} ${charityByTxn[t.id].amount.toFixed(2)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

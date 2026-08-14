@@ -175,10 +175,11 @@ model NetWorthSnapshot {
 }
 
 model CharityEntry {
-  id     String   @id @default(cuid())
-  date   DateTime
-  type   String   // "owed" | "given"
-  kind   String   @default("cash") // "cash" | "time" | "other" — how it was given, for "given" entries
-  amount Float
-  note   String?
+  id            String   @id @default(cuid())
+  date          DateTime
+  type          String   // "owed" | "given"
+  kind          String   @default("cash") // "cash" | "time" | "other" — how it was given, for "given" entries
+  amount        Float
+  note          String?
+  transactionId String?  // links back to the Transaction that triggered it, so it can show inline
 }
