@@ -7,6 +7,10 @@ export default function SettingsPage() {
   const [label, setLabel] = useState("");
   const [rate, setRate] = useState("");
 
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [acctTab, setAcctTab] = useState("expense");
+  const [newAcctName, setNewAcctName] = useState("");
+
   const [general, setGeneral] = useState<any>(null);
   const [currency, setCurrency] = useState("$");
   const [location, setLocation] = useState("");
@@ -14,8 +18,10 @@ export default function SettingsPage() {
   const [savedMsg, setSavedMsg] = useState(false);
 
   const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
+  const loadAccounts = () => fetch("/api/categories").then((r) => r.json()).then(setAccounts);
   useEffect(() => {
     load();
+    loadAccounts();
     fetch("/api/settings/general").then((r) => r.json()).then((d) => {
       setGeneral(d);
       setCurrency(d.currency || "$");
@@ -23,6 +29,22 @@ export default function SettingsPage() {
       setCharityDefaultPct(String(d.charityDefaultPct ?? 10));
     });
   }, []);
+
+  const addAccount = async () => {
+    const name = newAcctName.trim();
+    if (!name) return;
+    await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, type: acctTab }),
+    });
+    setNewAcctName("");
+    loadAccounts();
+  };
+  const removeAccount = async (id: string) => {
+    await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    loadAccounts();
+  };
 
   const addProfile = async () => {
     if (!label.trim() || !rate) return;
@@ -72,6 +94,28 @@ export default function SettingsPage() {
           <button className="btn" onClick={saveGeneral}>{savedMsg ? "Saved ✓" : "Save"}</button>
         </div>
         <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 8 }}>Note: display currently shows $ throughout the app regardless of this setting — this saves your preference for future use.</div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Accounts</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+          {["expense", "income"].map((t) => (
+            <button key={t} className={acctTab === t ? "btn" : "btn-outline"} onClick={() => setAcctTab(t)} style={{ padding: "5px 14px", fontSize: 12, textTransform: "capitalize" }}>{t} accounts</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          {accounts.filter((a) => a.type === acctTab).map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13 }}>
+              {a.name}
+              <button onClick={() => removeAccount(a.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+            </div>
+          ))}
+          {accounts.filter((a) => a.type === acctTab).length === 0 && <div style={{ color: "#8A8370", fontSize: 13 }}>No {acctTab} accounts yet.</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={newAcctName} onChange={(e) => setNewAcctName(e.target.value)} placeholder={`New ${acctTab} account, e.g. Groceries`} style={{ flex: 1, minWidth: 160 }} onKeyDown={(e) => e.key === "Enter" && addAccount()} />
+          <button className="btn" onClick={addAccount}>Add</button>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

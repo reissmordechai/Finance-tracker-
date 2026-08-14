@@ -28,7 +28,10 @@ export default function TransactionsPage() {
   const [txns, setTxns] = useState<any[]>([]);
   const [charityEntries, setCharityEntries] = useState<any[]>([]);
   const [type, setType] = useState("expense");
-  const [category, setCategory] = useState("Groceries");
+  const [categories, setCategories] = useState<any[]>([]);
+  const [category, setCategory] = useState("");
+  const [addingNewCat, setAddingNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState("");
@@ -56,12 +59,31 @@ export default function TransactionsPage() {
     fetch("/api/transactions").then((r) => r.json()).then(setTxns);
     fetch("/api/charity").then((r) => r.json()).then(setCharityEntries);
   };
+  const loadCategories = () => fetch("/api/categories").then((r) => r.json()).then(setCategories);
   useEffect(() => {
     load();
+    loadCategories();
     fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
   }, []);
 
-  useEffect(() => { setCharityEligible(null); setIsCharityPayment(null); }, [type]);
+  const catsForType = categories.filter((c) => c.type === type);
+  useEffect(() => {
+    setCharityEligible(null); setIsCharityPayment(null);
+    if (!catsForType.find((c) => c.name === category)) setCategory(catsForType[0]?.name || "");
+  }, [type, categories]);
+
+  const confirmNewCategory = async () => {
+    const name = newCatName.trim();
+    if (!name) return;
+    const created = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, type }),
+    }).then((r) => r.json());
+    setCategory(created.name);
+    setNewCatName(""); setAddingNewCat(false);
+    loadCategories();
+  };
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,7 +97,7 @@ export default function TransactionsPage() {
 
   const add = async () => {
     const amt = parseFloat(amount);
-    if (!amt) return;
+    if (!amt || !category) return;
     const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -138,7 +160,20 @@ export default function TransactionsPage() {
           <option value="expense">Expense</option>
           <option value="income">Income</option>
         </select>
-        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Account" style={{ width: 140 }} />
+        <div>
+          {addingNewCat ? (
+            <div style={{ display: "flex", gap: 4 }}>
+              <input autoFocus value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="e.g. Groceries" style={{ width: 130 }} onKeyDown={(e) => e.key === "Enter" && confirmNewCategory()} />
+              <button className="btn" onClick={confirmNewCategory} style={{ padding: "9px 10px" }}>OK</button>
+            </div>
+          ) : (
+            <select value={category} onChange={(e) => { if (e.target.value === "__new__") setAddingNewCat(true); else setCategory(e.target.value); }} style={{ width: 160 }}>
+              {catsForType.length === 0 && <option value="">No accounts yet</option>}
+              {catsForType.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              <option value="__new__">+ New account…</option>
+            </select>
+          )}
+        </div>
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" style={{ width: 180 }} />
@@ -151,7 +186,7 @@ export default function TransactionsPage() {
         <button className="btn" onClick={add}>Add</button>
       </div>
 
-      {type === "income" && amount && (
+      {type === "income" && (
         <div className="card" style={{ marginBottom: 16, background: "#FBF9F2" }}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: charityEligible ? 10 : 0 }}>Does this count toward your charity obligation?</div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -168,7 +203,7 @@ export default function TransactionsPage() {
           )}
         </div>
       )}
-      {type === "expense" && amount && (
+      {type === "expense" && (
         <div className="card" style={{ marginBottom: 16, background: "#FBF9F2" }}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: isCharityPayment ? 10 : 0 }}>Is this a charity payment?</div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -178,8 +213,8 @@ export default function TransactionsPage() {
           {isCharityPayment && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, flexWrap: "wrap" }}>
               <span>Subtract</span>
-              <input type="number" value={charityGiveAmount} onChange={(e) => setCharityGiveAmount(e.target.value)} placeholder={amount} style={{ width: 90 }} />
-              <span>from what I owe</span>
+              <input type="number" value={charityGiveAmount} onChange={(e) => setCharityGiveAmount(e.target.value)} placeholder={amount || "0"} style={{ width: 90 }} />
+              <span>— full amount if left blank — from what I owe</span>
             </div>
           )}
         </div>
