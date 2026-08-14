@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [location, setLocation] = useState("");
   const [charityDefaultPct, setCharityDefaultPct] = useState("10");
   const [savedMsg, setSavedMsg] = useState(false);
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
 
   const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
   const loadAccounts = () => fetch("/api/categories").then((r) => r.json()).then(setAccounts);
@@ -28,7 +29,10 @@ export default function SettingsPage() {
       setLocation(d.location || "");
       setCharityDefaultPct(String(d.charityDefaultPct ?? 10));
     });
+    try { setLastBackup(localStorage.getItem("lastBackupAt")); } catch {}
   }, []);
+
+  const daysSinceBackup = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000) : 0;
 
   const addAccount = async () => {
     const name = newAcctName.trim();
@@ -148,8 +152,15 @@ export default function SettingsPage() {
         <div style={{ display: "grid", gap: 8 }}>
           <Link href="/tags" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Manage Tags</Link>
           <Link href="/trash" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Trash (deleted transactions)</Link>
-          <a href="/api/export" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }}>Export all transactions (CSV)</a>
+          <a href="/api/export" className="btn-outline" style={{ textDecoration: "none", textAlign: "center" }} onClick={() => { try { localStorage.setItem("lastBackupAt", new Date().toISOString()); } catch {} }}>Export all transactions (CSV)</a>
         </div>
+        {lastBackup && (
+          <div style={{ fontSize: 11.5, color: daysSinceBackup > 30 ? "#9C4221" : "#8A8370", marginTop: 10 }}>
+            Last backed up {daysSinceBackup === 0 ? "today" : `${daysSinceBackup} day${daysSinceBackup !== 1 ? "s" : ""} ago`}
+            {daysSinceBackup > 30 && " — consider exporting a fresh copy"}
+          </div>
+        )}
+        {!lastBackup && <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 10 }}>No backup recorded yet on this device.</div>}
       </div>
     </main>
   );

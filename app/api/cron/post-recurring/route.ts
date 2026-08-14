@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentPrice } from "@/lib/stockPrice";
 
 function addInterval(date: Date, freq: string): Date {
   const d = new Date(date.getTime());
@@ -29,20 +30,33 @@ export async function GET(req: NextRequest) {
     let guard = 0;
 
     while (cursor <= today && (!rule.endDate || cursor <= rule.endDate) && guard < 500) {
-      await prisma.transaction.create({
-        data: {
-          type: rule.type,
-          date: cursor,
-          category: rule.category,
-          amount: rule.amount,
-          note: rule.note || "",
-          paymentMethod: rule.paymentMethod,
-          cardId: rule.paymentMethod === "card" ? rule.cardId : null,
-          bankAccountId: rule.paymentMethod === "debit" ? rule.bankAccountId : null,
-          checkNumber: rule.checkNumber,
-          recurringId: rule.id,
-        },
-      });
+      if (rule.postTo === "holding" && rule.holdingId) {
+        const holding = await prisma.holding.findUnique({ where: { id: rule.holdingId } });
+        if (holding) {
+          let newShares = holding.shares;
+          if (holding.symbol) {
+            const price = await getCurrentPrice(holding.symbol);
+            if (price) newShares = holding.shares + rule.amount / price;
+          }
+          await prisma.holdingEntry.create({ data: { holdingId: holding.id, date: cursor, amount: rule.amount } });
+          await prisma.holding.update({ where: { id: holding.id }, data: { currentValue: holding.currentValue + rule.amount, shares: newShares } });
+        }
+      } else {
+        await prisma.transaction.create({
+          data: {
+            type: rule.type,
+            date: cursor,
+            category: rule.category,
+            amount: rule.amount,
+            note: rule.note || "",
+            paymentMethod: rule.paymentMethod,
+            cardId: rule.paymentMethod === "card" ? rule.cardId : null,
+            bankAccountId: rule.paymentMethod === "debit" ? rule.bankAccountId : null,
+            checkNumber: rule.checkNumber,
+            recurringId: rule.id,
+          },
+        });
+      }
       await prisma.recurring.update({ where: { id: rule.id }, data: { lastGenerated: cursor } });
       posted++;
       cursor = addInterval(cursor, rule.frequency);

@@ -20,6 +20,8 @@ export async function POST(req: NextRequest) {
       cardId: body.cardId || null,
       bankAccountId: body.bankAccountId || null,
       note: body.note || null,
+      postTo: body.postTo || "transaction",
+      holdingId: body.postTo === "holding" ? body.holdingId : null,
     },
   });
   return NextResponse.json(rule);

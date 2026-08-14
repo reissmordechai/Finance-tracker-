@@ -59,6 +59,7 @@ model Card {
   limit      Float    @default(0)
   dueDay     Int?
   amountDue  Float    @default(0)
+  apr        Float?   // annual % rate, optional — used by the payoff planner
   payments   CardPayment[]
 }
 
@@ -118,6 +119,19 @@ model Holding {
   currentValue Float           @default(0)
   entries      HoldingEntry[]  // contributions (money put in)
   history      HoldingValue[]  // value over time, appended by cron + manual updates
+  recurring    RecurringHolding[]
+}
+
+model RecurringHolding {
+  id            String    @id @default(cuid())
+  holding       Holding   @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  holdingId     String
+  amount        Float
+  frequency     String    // "weekly" | "monthly" | "yearly"
+  startDate     DateTime
+  endDate       DateTime?
+  lastGenerated DateTime?
+  paused        Boolean   @default(false)
 }
 
 model HoldingEntry {
@@ -152,13 +166,16 @@ model Recurring {
   bankAccountId String?
   checkNumber   String?
   note          String?
+  postTo        String    @default("transaction") // "transaction" | "holding"
+  holdingId     String?   // used when postTo = "holding" — which holding to contribute into
 }
 
 model Settings {
-  id                  String @id @default("singleton")
-  location            String @default("")
-  currency            String @default("$")
-  charityDefaultPct   Float  @default(10)
+  id                  String    @id @default("singleton")
+  location            String    @default("")
+  currency            String    @default("$")
+  charityDefaultPct   Float     @default(10)
+  lastExportDate      DateTime?
   defaultTaxProfileId String?
 }
 
