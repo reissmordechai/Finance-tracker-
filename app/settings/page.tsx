@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [general, setGeneral] = useState<any>(null);
   const [currency, setCurrency] = useState("$");
   const [location, setLocation] = useState("");
+  const [charityDefaultPct, setCharityDefaultPct] = useState("10");
   const [savedMsg, setSavedMsg] = useState(false);
 
   const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
@@ -19,6 +20,7 @@ export default function SettingsPage() {
       setGeneral(d);
       setCurrency(d.currency || "$");
       setLocation(d.location || "");
+      setCharityDefaultPct(String(d.charityDefaultPct ?? 10));
     });
   }, []);
 
@@ -42,7 +44,7 @@ export default function SettingsPage() {
     await fetch("/api/settings/general", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currency, location }),
+      body: JSON.stringify({ currency, location, charityDefaultPct: parseFloat(charityDefaultPct) || 10 }),
     });
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 1800);
@@ -63,9 +65,19 @@ export default function SettingsPage() {
             <label style={{ fontSize: 11, color: "#8A8370" }}>Location (optional)</label>
             <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Monsey, NY" style={{ width: 200, display: "block" }} />
           </div>
+          <div>
+            <label style={{ fontSize: 11, color: "#8A8370" }}>Default charity rate (%)</label>
+            <input type="number" step="0.1" value={charityDefaultPct} onChange={(e) => setCharityDefaultPct(e.target.value)} style={{ width: 90, display: "block" }} />
+          </div>
           <button className="btn" onClick={saveGeneral}>{savedMsg ? "Saved ✓" : "Save"}</button>
         </div>
         <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 8 }}>Note: display currently shows $ throughout the app regardless of this setting — this saves your preference for future use.</div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Charity / Maaser</div>
+        <div style={{ fontSize: 13, color: "#5B5540", marginBottom: 10 }}>Track what you owe against what you've given.</div>
+        <Link href="/charity" className="btn-outline" style={{ textDecoration: "none", display: "inline-block" }}>Open Charity tracker</Link>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

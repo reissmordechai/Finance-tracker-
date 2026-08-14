@@ -35,6 +35,14 @@ export default function TransactionsPage() {
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
+  // Charity / maaser
+  const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
+  const [charityPct, setCharityPct] = useState("10");
+  const [charityOverrideAmount, setCharityOverrideAmount] = useState("");
+  const [isCharityPayment, setIsCharityPayment] = useState<null | boolean>(null);
+  const [charityGiveAmount, setCharityGiveAmount] = useState("");
+  const [charityGiveKind, setCharityGiveKind] = useState("cash");
+
   // filters
   const [fCategory, setFCategory] = useState("");
   const [fFrom, setFFrom] = useState("");
@@ -44,7 +52,12 @@ export default function TransactionsPage() {
   const [fTag, setFTag] = useState("");
 
   const load = () => fetch("/api/transactions").then((r) => r.json()).then(setTxns);
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
+  }, []);
+
+  useEffect(() => { setCharityEligible(null); setIsCharityPayment(null); }, [type]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,6 +67,8 @@ export default function TransactionsPage() {
     setUploading(false);
   };
 
+  const charityAmount = charityOverrideAmount ? parseFloat(charityOverrideAmount) || 0 : (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
+
   const add = async () => {
     const amt = parseFloat(amount);
     if (!amt) return;
@@ -62,7 +77,25 @@ export default function TransactionsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, category, amount: amt, date, tags: tags || null, receiptImage }),
     });
+
+    if (type === "income" && charityEligible && charityAmount > 0) {
+      await fetch("/api/charity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "owed", amount: Math.round(charityAmount * 100) / 100, date, note: `${charityPct}% of ${category} income` }),
+      });
+    }
+    if (type === "expense" && isCharityPayment) {
+      const giveAmt = parseFloat(charityGiveAmount) || amt;
+      await fetch("/api/charity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "given", kind: charityGiveKind, amount: giveAmt, date, note: `Paid via ${category}` }),
+      });
+    }
+
     setAmount(""); setTags(""); setReceiptImage(null);
+    setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     load();
   };
 
@@ -110,6 +143,40 @@ export default function TransactionsPage() {
         </div>
         <button className="btn" onClick={add}>Add</button>
       </div>
+
+      {type === "income" && amount && (
+        <div className="card" style={{ marginBottom: 16, background: "#FBF9F2" }}>
+          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: charityEligible ? 10 : 0 }}>Does this count toward your charity obligation?</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className={charityEligible === true ? "btn" : "btn-outline"} onClick={() => setCharityEligible(true)} style={{ padding: "6px 16px", fontSize: 12.5 }}>Yes</button>
+            <button className={charityEligible === false ? "btn" : "btn-outline"} onClick={() => setCharityEligible(false)} style={{ padding: "6px 16px", fontSize: 12.5 }}>No</button>
+          </div>
+          {charityEligible && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, flexWrap: "wrap" }}>
+              <input type="number" value={charityPct} onChange={(e) => { setCharityPct(e.target.value); setCharityOverrideAmount(""); }} style={{ width: 55 }} />
+              % = <span className="num" style={{ fontWeight: 600 }}>${charityAmount.toFixed(2)}</span>
+              <span style={{ color: "#8A8370" }}>or set exact amount:</span>
+              <input type="number" step="0.01" value={charityOverrideAmount} onChange={(e) => setCharityOverrideAmount(e.target.value)} placeholder="optional" style={{ width: 100 }} />
+            </div>
+          )}
+        </div>
+      )}
+      {type === "expense" && amount && (
+        <div className="card" style={{ marginBottom: 16, background: "#FBF9F2" }}>
+          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: isCharityPayment ? 10 : 0 }}>Is this a charity payment?</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className={isCharityPayment === true ? "btn" : "btn-outline"} onClick={() => setIsCharityPayment(true)} style={{ padding: "6px 16px", fontSize: 12.5 }}>Yes</button>
+            <button className={isCharityPayment === false ? "btn" : "btn-outline"} onClick={() => setIsCharityPayment(false)} style={{ padding: "6px 16px", fontSize: 12.5 }}>No</button>
+          </div>
+          {isCharityPayment && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, flexWrap: "wrap" }}>
+              <span>Subtract</span>
+              <input type="number" value={charityGiveAmount} onChange={(e) => setCharityGiveAmount(e.target.value)} placeholder={amount} style={{ width: 90 }} />
+              <span>from what I owe</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Search &amp; filter</div>

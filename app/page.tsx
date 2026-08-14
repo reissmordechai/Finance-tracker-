@@ -40,6 +40,11 @@ export default async function Dashboard() {
     return { category: b.category, spent, limit: b.limit, pct };
   }).filter((b) => b.pct >= 80);
 
+  const charityEntries = await prisma.charityEntry.findMany();
+  const charityOwed = charityEntries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
+  const charityGiven = charityEntries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
+  const charityBalance = charityOwed - charityGiven;
+
   return (
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Finance Tracker</h1>
@@ -74,6 +79,13 @@ export default async function Dashboard() {
         </div>
         <LineChart points={chartPoints} />
       </div>
+
+      {charityBalance > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "#8A8370", textTransform: "uppercase" }}>Charity still owed</div>
+          <div className="num" style={{ fontSize: 22, fontWeight: 700, color: "#9C4221" }}>${charityBalance.toFixed(2)}</div>
+        </div>
+      )}
 
       <div className="card">
         <div style={{ fontWeight: 600, marginBottom: 10 }}>Recent transactions</div>

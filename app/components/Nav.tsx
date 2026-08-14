@@ -8,6 +8,8 @@ const links = [
   { href: "/transactions", label: "Transactions" },
   { href: "/cards", label: "Cards" },
   { href: "/holdings", label: "Holdings" },
+  { href: "/market", label: "Market" },
+  { href: "/charity", label: "Charity" },
   { href: "/budgets", label: "Budgets" },
   { href: "/goals", label: "Goals" },
   { href: "/recurring", label: "Recurring" },

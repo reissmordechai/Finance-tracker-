@@ -158,6 +158,7 @@ model Settings {
   id                  String @id @default("singleton")
   location            String @default("")
   currency            String @default("$")
+  charityDefaultPct   Float  @default(10)
   defaultTaxProfileId String?
 }
 
@@ -171,4 +172,13 @@ model NetWorthSnapshot {
   id    String   @id @default(cuid())
   date  DateTime
   value Float
+}
+
+model CharityEntry {
+  id     String   @id @default(cuid())
+  date   DateTime
+  type   String   // "owed" | "given"
+  kind   String   @default("cash") // "cash" | "time" | "other" — how it was given, for "given" entries
+  amount Float
+  note   String?
 }

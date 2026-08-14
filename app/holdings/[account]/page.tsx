@@ -13,11 +13,18 @@ export default function AccountDetailPage() {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [amount, setAmount] = useState("");
+  const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
+  const [charityPct, setCharityPct] = useState("10");
 
   const load = () => fetch("/api/holdings").then((r) => r.json()).then((all: any[]) => {
     setHoldings(all.filter((h) => (h.account || "Unassigned") === accountName));
   });
-  useEffect(() => { load(); }, [accountName]);
+  useEffect(() => {
+    load();
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
+  }, [accountName]);
+
+  const charityAmount = (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
 
   const add = async () => {
     const amt = parseFloat(amount);
@@ -27,7 +34,14 @@ export default function AccountDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, account: isUnassigned ? null : accountName, symbol: symbol || null, amount: amt, date: new Date().toISOString() }),
     });
-    setName(""); setSymbol(""); setAmount(""); setShowAdd(false);
+    if (charityEligible && charityAmount > 0) {
+      await fetch("/api/charity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "owed", amount: Math.round(charityAmount * 100) / 100, note: `${charityPct}% of deposit into ${name}` }),
+      });
+    }
+    setName(""); setSymbol(""); setAmount(""); setCharityEligible(null); setShowAdd(false);
     load();
   };
 
@@ -52,11 +66,26 @@ export default function AccountDetailPage() {
       </div>
 
       {showAdd && (
-        <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. S&P 500 ETF" style={{ flex: 2, minWidth: 160 }} />
-          <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="Symbol (optional)" style={{ width: 140 }} />
-          <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
-          <button className="btn" onClick={add}>Save</button>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. S&P 500 ETF" style={{ flex: 2, minWidth: 160 }} />
+            <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="Symbol (optional)" style={{ width: 140 }} />
+            <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
+            <button className="btn" onClick={add}>Save</button>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: charityEligible ? 8 : 0 }}>Does this deposit count toward charity?</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className={charityEligible === true ? "btn" : "btn-outline"} onClick={() => setCharityEligible(true)} style={{ padding: "6px 16px", fontSize: 12.5 }}>Yes</button>
+              <button className={charityEligible === false ? "btn" : "btn-outline"} onClick={() => setCharityEligible(false)} style={{ padding: "6px 16px", fontSize: 12.5 }}>No</button>
+            </div>
+            {charityEligible && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>
+                <input type="number" value={charityPct} onChange={(e) => setCharityPct(e.target.value)} style={{ width: 55 }} />
+                % of this ={amount && <span className="num" style={{ fontWeight: 600 }}>&nbsp;${charityAmount.toFixed(2)}</span>}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
