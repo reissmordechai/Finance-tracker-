@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { parseCsv } from "@/lib/csv";
+import { useVoiceInput } from "../components/useVoiceInput";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -49,6 +50,11 @@ export default function TransactionsPage() {
   const [charityGiveAmount, setCharityGiveAmount] = useState("");
   const [charityGiveKind, setCharityGiveKind] = useState("cash");
 
+  // Multi-currency
+  const [baseCurrency, setBaseCurrency] = useState("USD");
+  const [entryCurrency, setEntryCurrency] = useState("USD");
+  const [converting, setConverting] = useState(false);
+
   // filters
   const [fCategory, setFCategory] = useState("");
   const [fFrom, setFFrom] = useState("");
@@ -65,10 +71,26 @@ export default function TransactionsPage() {
   useEffect(() => {
     load();
     loadCategories();
-    fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => {
+      setCharityPct(String(d.charityDefaultPct ?? 10));
+      setBaseCurrency(d.baseCurrencyCode || "USD");
+      setEntryCurrency(d.baseCurrencyCode || "USD");
+    });
   }, []);
 
   const catsForType = categories.filter((c) => c.type === type);
+  const voice = useVoiceInput(catsForType.map((c) => c.name));
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const startVoice = () => {
+    voice.start((parsed, raw) => {
+      setVoiceTranscript(raw);
+      if (parsed.amount) setAmount(parsed.amount);
+      if (parsed.category) {
+        const match = catsForType.find((c) => c.name.toLowerCase() === parsed.category.toLowerCase());
+        setCategory(match ? match.name : parsed.category);
+      }
+    });
+  };
   useEffect(() => {
     setCharityEligible(null); setIsCharityPayment(null);
     if (!catsForType.find((c) => c.name === category)) setCategory(catsForType[0]?.name || "");
@@ -100,10 +122,25 @@ export default function TransactionsPage() {
   const add = async () => {
     const amt = parseFloat(amount);
     if (!amt || !category) return;
+
+    let finalAmount = amt;
+    let currencyCode: string | null = null;
+    let originalAmount: number | null = null;
+    if (entryCurrency !== baseCurrency) {
+      setConverting(true);
+      const { rate } = await fetch(`/api/currency?from=${entryCurrency}&to=${baseCurrency}`).then((r) => r.json());
+      setConverting(false);
+      if (rate) {
+        finalAmount = Math.round(amt * rate * 100) / 100;
+        currencyCode = entryCurrency;
+        originalAmount = amt;
+      }
+    }
+
     const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, category, amount: amt, date, tags: tags || null, receiptImage }),
+      body: JSON.stringify({ type, category, amount: finalAmount, date, tags: tags || null, receiptImage, currencyCode, originalAmount }),
     }).then((r) => r.json());
 
     if (type === "income" && charityEligible && charityAmount > 0) {
@@ -114,7 +151,7 @@ export default function TransactionsPage() {
       });
     }
     if (type === "expense" && isCharityPayment) {
-      const giveAmt = parseFloat(charityGiveAmount) || amt;
+      const giveAmt = parseFloat(charityGiveAmount) || finalAmount;
       await fetch("/api/charity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -219,6 +256,7 @@ export default function TransactionsPage() {
         </div>
       </div>
       {importSummary && <div style={{ fontSize: 12.5, color: "#5B5540", marginTop: 4, marginBottom: 8 }}>{importSummary}</div>}
+      {voiceTranscript && <div style={{ fontSize: 12.5, color: "#5B5540", marginTop: 4, marginBottom: 8 }}>Heard: "{voiceTranscript}" — check the amount and account before adding.</div>}
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 110 }}>
@@ -240,6 +278,14 @@ export default function TransactionsPage() {
           )}
         </div>
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
+        <select value={entryCurrency} onChange={(e) => setEntryCurrency(e.target.value)} style={{ width: 90 }}>
+          {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {voice.supported && (
+          <button type="button" className={voice.listening ? "btn" : "btn-outline"} onClick={startVoice} style={{ padding: "9px 12px" }} title="Speak amount and account">
+            {voice.listening ? "🎙️ Listening…" : "🎙️"}
+          </button>
+        )}
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" style={{ width: 180 }} />
         <div style={{ display: "flex", gap: 4 }}>
@@ -270,7 +316,7 @@ export default function TransactionsPage() {
             <input type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
           </label>
         </div>
-        <button className="btn" onClick={add}>Add</button>
+        <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
       </div>
 
       {type === "income" && (
@@ -348,6 +394,9 @@ export default function TransactionsPage() {
                 <div>{t.category}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
+                  {t.currencyCode && t.originalAmount != null && (
+                    <span style={{ marginLeft: 6 }}>· originally {t.originalAmount.toFixed(2)} {t.currencyCode}</span>
+                  )}
                   {charityByTxn[t.id] && (
                     <span className="pill" style={{ marginLeft: 6, background: charityByTxn[t.id].type === "owed" ? "#F0EAD8" : "#E3EDE7" }}>
                       Charity {charityByTxn[t.id].type === "owed" ? "set aside" : "given"} ${charityByTxn[t.id].amount.toFixed(2)}

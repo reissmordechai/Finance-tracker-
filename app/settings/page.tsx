@@ -13,6 +13,7 @@ export default function SettingsPage() {
 
   const [general, setGeneral] = useState<any>(null);
   const [currency, setCurrency] = useState("$");
+  const [baseCurrencyCode, setBaseCurrencyCode] = useState("USD");
   const [location, setLocation] = useState("");
   const [charityDefaultPct, setCharityDefaultPct] = useState("10");
   const [savedMsg, setSavedMsg] = useState(false);
@@ -26,6 +27,7 @@ export default function SettingsPage() {
     fetch("/api/settings/general").then((r) => r.json()).then((d) => {
       setGeneral(d);
       setCurrency(d.currency || "$");
+      setBaseCurrencyCode(d.baseCurrencyCode || "USD");
       setLocation(d.location || "");
       setCharityDefaultPct(String(d.charityDefaultPct ?? 10));
     });
@@ -70,7 +72,7 @@ export default function SettingsPage() {
     await fetch("/api/settings/general", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currency, location, charityDefaultPct: parseFloat(charityDefaultPct) || 10 }),
+      body: JSON.stringify({ currency, location, charityDefaultPct: parseFloat(charityDefaultPct) || 10, baseCurrencyCode }),
     });
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 1800);
@@ -86,6 +88,10 @@ export default function SettingsPage() {
           <div>
             <label style={{ fontSize: 11, color: "#8A8370" }}>Currency symbol</label>
             <input value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 80, display: "block" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "#8A8370" }}>Base currency code</label>
+            <input value={baseCurrencyCode} onChange={(e) => setBaseCurrencyCode(e.target.value.toUpperCase())} placeholder="USD" style={{ width: 80, display: "block" }} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: "#8A8370" }}>Location (optional)</label>

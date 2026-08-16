@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const settings = await prisma.settings.upsert({
     where: { id: "singleton" },
-    update: { currency: body.currency, location: body.location, charityDefaultPct: body.charityDefaultPct },
-    create: { id: "singleton", currency: body.currency || "$", location: body.location || "", charityDefaultPct: body.charityDefaultPct || 10 },
+    update: { currency: body.currency, location: body.location, charityDefaultPct: body.charityDefaultPct, baseCurrencyCode: body.baseCurrencyCode },
+    create: { id: "singleton", currency: body.currency || "$", location: body.location || "", charityDefaultPct: body.charityDefaultPct || 10, baseCurrencyCode: body.baseCurrencyCode || "USD" },
   });
   return NextResponse.json(settings);
 }

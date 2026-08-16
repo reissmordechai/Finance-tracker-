@@ -38,6 +38,8 @@ model Transaction {
   splitCount     Int?
   recurringId    String?
   tags           String?  // comma-separated, e.g. "tax deductible,reimbursable"
+  currencyCode   String?  // e.g. "EUR" — set only when this was entered in a non-base currency
+  originalAmount Float?   // the amount as entered, before conversion to your base currency
   deletedAt      DateTime? // soft-delete — set instead of removing, so it can be restored from Trash
   items          Item[]
   createdAt      DateTime @default(now())
@@ -174,9 +176,19 @@ model Settings {
   id                  String    @id @default("singleton")
   location            String    @default("")
   currency            String    @default("$")
+  baseCurrencyCode    String    @default("USD") // e.g. "USD", "EUR" — used for foreign-currency conversion
   charityDefaultPct   Float     @default(10)
   lastExportDate      DateTime?
   defaultTaxProfileId String?
+}
+
+model ShoppingItem {
+  id        String   @id @default(cuid())
+  name      String
+  note      String?
+  category  String?  // optional link to a budget account
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model TaxProfile {

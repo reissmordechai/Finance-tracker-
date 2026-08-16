@@ -120,3 +120,21 @@ export async function getNews(symbol: string) {
     return [];
   }
 }
+
+// Live currency conversion rate, e.g. from="EUR", to="USD". Uses the same
+// Alpha Vantage key as stock lookups (it supports forex too).
+export async function getExchangeRate(from: string, to: string): Promise<number | null> {
+  if (from === to) return 1;
+  const apiKey = process.env.STOCK_API_KEY;
+  if (!apiKey) return null;
+  const url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${encodeURIComponent(from)}&to_currency=${encodeURIComponent(to)}&apikey=${apiKey}`;
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    const rate = data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"];
+    return rate ? parseFloat(rate) : null;
+  } catch (err) {
+    console.error("getExchangeRate failed:", err);
+    return null;
+  }
+}

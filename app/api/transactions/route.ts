@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       taxAmount: body.tax?.amount ?? null,
       receiptImage: body.receiptImage || null,
       tags: body.tags || null,
+      currencyCode: body.currencyCode || null,
+      originalAmount: body.originalAmount ?? null,
       items: body.items?.length
         ? { create: body.items.map((it: any) => ({ name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice })) }
         : undefined,

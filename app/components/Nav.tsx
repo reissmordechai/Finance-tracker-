@@ -17,6 +17,7 @@ const links = [
   { href: "/goals", label: "Goals" },
   { href: "/recurring", label: "Recurring" },
   { href: "/vendors", label: "Vendors" },
+  { href: "/shopping", label: "Shopping" },
   { href: "/reports", label: "Reports" },
   { href: "/calculator", label: "Calculator" },
   { href: "/search", label: "Search" },
@@ -25,7 +26,7 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/summary") return null;
 
   return (
     <header className="app-header">
