@@ -77,9 +77,20 @@ model CardPayment {
 }
 
 model BankAccount {
-  id      String @id @default(cuid())
-  name    String
-  balance Float  @default(0)
+  id           String @id @default(cuid())
+  name         String
+  balance      Float  @default(0)
+  currencyCode String @default("USD")
+}
+
+model Transfer {
+  id              String   @id @default(cuid())
+  fromAccountId   String
+  toAccountId     String
+  amount          Float    // deducted from source, in source's currency
+  convertedAmount Float    // credited to destination, in destination's currency
+  date            DateTime
+  note            String?
 }
 
 model Vendor {
@@ -117,6 +128,7 @@ model Holding {
   name         String          // e.g. "S&P 500 Index Fund"
   account      String?         // e.g. "Fidelity IRA", "Fidelity Brokerage" — lets you track the same fund separately per account
   symbol       String?         // e.g. "VOO" — used by the cron job to look up price. Leave blank for manual-only tracking.
+  currencyCode String          @default("USD")
   shares       Float           @default(0) // computed from contributions ÷ price-at-purchase, when symbol is set
   currentValue Float           @default(0)
   entries      HoldingEntry[]  // contributions (money put in)

@@ -9,6 +9,9 @@ export default function HoldingsAccountsPage() {
   const [account, setAccount] = useState("");
   const [symbol, setSymbol] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [baseCurrency, setBaseCurrency] = useState("USD");
+  const [convertedValues, setConvertedValues] = useState<Record<string, number>>({});
   const [benchmark, setBenchmark] = useState<number | null>(null);
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
   const [charityPct, setCharityPct] = useState("10");
@@ -17,8 +20,28 @@ export default function HoldingsAccountsPage() {
   useEffect(() => {
     load();
     fetch("/api/benchmark").then((r) => r.json()).then((d) => setBenchmark(d.price));
-    fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => {
+      setCharityPct(String(d.charityDefaultPct ?? 10));
+      setBaseCurrency(d.baseCurrencyCode || "USD");
+      setCurrency(d.baseCurrencyCode || "USD");
+    });
   }, []);
+
+  // Convert any holding not already in the base currency, for accurate totals
+  useEffect(() => {
+    const foreign = holdings.filter((h) => h.currencyCode && h.currencyCode !== baseCurrency);
+    if (foreign.length === 0) { setConvertedValues({}); return; }
+    (async () => {
+      const next: Record<string, number> = {};
+      for (const h of foreign) {
+        const { rate } = await fetch(`/api/currency?from=${h.currencyCode}&to=${baseCurrency}`).then((r) => r.json());
+        next[h.id] = rate ? h.currentValue * rate : h.currentValue;
+      }
+      setConvertedValues(next);
+    })();
+  }, [holdings, baseCurrency]);
+
+  const valueInBase = (h: any) => convertedValues[h.id] ?? h.currentValue;
 
   const charityAmount = (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
 
@@ -28,7 +51,7 @@ export default function HoldingsAccountsPage() {
     await fetch("/api/holdings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, account: account || null, symbol: symbol || null, amount: amt, date: new Date().toISOString() }),
+      body: JSON.stringify({ name, account: account || null, symbol: symbol || null, currencyCode: currency, amount: amt, date: new Date().toISOString() }),
     });
     if (charityEligible && charityAmount > 0) {
       await fetch("/api/charity", {
@@ -48,10 +71,11 @@ export default function HoldingsAccountsPage() {
     groups[key].push(h);
   });
 
-  const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
+  const totalValue = holdings.reduce((s, h) => s + valueInBase(h), 0);
   const totalInvested = holdings.reduce((s: number, h: any) => s + (h.entries || []).reduce((a: number, e: any) => a + e.amount, 0), 0);
   const overallGain = totalValue - totalInvested;
   const overallPct = totalInvested ? (overallGain / totalInvested) * 100 : 0;
+  const currencies = Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"]));
 
   return (
     <main className="page">
@@ -84,6 +108,9 @@ export default function HoldingsAccountsPage() {
             <input value={account} onChange={(e) => setAccount(e.target.value)} placeholder="Account, e.g. Down Payment" style={{ flex: 2, minWidth: 180 }} />
             <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="Symbol (optional)" style={{ width: 140 }} />
             <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 90 }}>
+              {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button className="btn" onClick={add}>Save</button>
           </div>
           <div style={{ marginTop: 12 }}>
@@ -107,7 +134,7 @@ export default function HoldingsAccountsPage() {
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {Object.entries(groups).map(([acct, list]) => {
-            const subtotal = list.reduce((s, h) => s + h.currentValue, 0);
+            const subtotal = list.reduce((s, h) => s + valueInBase(h), 0);
             return (
               <Link key={acct} href={`/holdings/${encodeURIComponent(acct)}`} style={{ textDecoration: "none", color: "inherit" }}>
                 <div className="card clickable" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>

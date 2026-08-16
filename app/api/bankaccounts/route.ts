@@ -9,7 +9,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const account = await prisma.bankAccount.create({
-    data: { name: body.name, balance: body.balance || 0 },
+    data: { name: body.name, balance: body.balance || 0, currencyCode: body.currencyCode || "USD" },
   });
   return NextResponse.json(account);
 }

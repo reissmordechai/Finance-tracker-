@@ -13,6 +13,8 @@ export default function AccountDetailPage() {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [baseCurrency, setBaseCurrency] = useState("USD");
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
   const [charityPct, setCharityPct] = useState("10");
 
@@ -21,7 +23,11 @@ export default function AccountDetailPage() {
   });
   useEffect(() => {
     load();
-    fetch("/api/settings/general").then((r) => r.json()).then((d) => setCharityPct(String(d.charityDefaultPct ?? 10)));
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => {
+      setCharityPct(String(d.charityDefaultPct ?? 10));
+      setBaseCurrency(d.baseCurrencyCode || "USD");
+      setCurrency(d.baseCurrencyCode || "USD");
+    });
   }, [accountName]);
 
   const charityAmount = (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
@@ -32,7 +38,7 @@ export default function AccountDetailPage() {
     await fetch("/api/holdings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, account: isUnassigned ? null : accountName, symbol: symbol || null, amount: amt, date: new Date().toISOString() }),
+      body: JSON.stringify({ name, account: isUnassigned ? null : accountName, symbol: symbol || null, currencyCode: currency, amount: amt, date: new Date().toISOString() }),
     });
     if (charityEligible && charityAmount > 0) {
       await fetch("/api/charity", {
@@ -71,6 +77,9 @@ export default function AccountDetailPage() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. S&P 500 ETF" style={{ flex: 2, minWidth: 160 }} />
             <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="Symbol (optional)" style={{ width: 140 }} />
             <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 90 }}>
+              {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button className="btn" onClick={add}>Save</button>
           </div>
           <div style={{ marginTop: 12 }}>
@@ -97,7 +106,7 @@ export default function AccountDetailPage() {
           return (
             <div className="card" key={h.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontWeight: 600 }}>{h.name} {h.symbol && <span style={{ fontSize: 11, color: "#8A8370" }}>({h.symbol})</span>}</div>
+                <div style={{ fontWeight: 600 }}>{h.name} {h.symbol && <span style={{ fontSize: 11, color: "#8A8370" }}>({h.symbol})</span>}{h.currencyCode && h.currencyCode !== baseCurrency && <span className="pill" style={{ marginLeft: 6 }}>{h.currencyCode}</span>}</div>
                 <button onClick={() => remove(h.id)} style={{ border: "none", background: "none", color: "#B0A88E", cursor: "pointer" }}>✕</button>
               </div>
               <div style={{ display: "flex", gap: 20, marginTop: 8, flexWrap: "wrap" }}>

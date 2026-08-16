@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       name: body.name,
       account: body.account || null,
       symbol: body.symbol || null,
+      currencyCode: body.currencyCode || "USD",
       shares,
       currentValue: body.amount,
       entries: { create: [{ date: new Date(body.date), amount: body.amount }] },

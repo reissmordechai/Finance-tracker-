@@ -20,5 +20,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: { amountDue: Math.max(0, card.amountDue - body.amount) },
     });
   }
+  // Actually deduct from the chosen bank account — previously this field was
+  // recorded but never applied to the account's balance.
+  if (body.fromAccountId) {
+    const account = await prisma.bankAccount.findUnique({ where: { id: body.fromAccountId } });
+    if (account) {
+      await prisma.bankAccount.update({ where: { id: body.fromAccountId }, data: { balance: account.balance - body.amount } });
+    }
+  }
   return NextResponse.json(payment);
 }
