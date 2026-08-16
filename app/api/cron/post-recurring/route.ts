@@ -41,6 +41,10 @@ export async function GET(req: NextRequest) {
           await prisma.holdingEntry.create({ data: { holdingId: holding.id, date: cursor, amount: rule.amount } });
           await prisma.holding.update({ where: { id: holding.id }, data: { currentValue: holding.currentValue + rule.amount, shares: newShares } });
         }
+      } else if (rule.postTo === "charity") {
+        await prisma.charityEntry.create({
+          data: { date: cursor, type: "given", kind: "cash", amount: rule.amount, note: `Recurring gift: ${rule.category}` },
+        });
       } else {
         await prisma.transaction.create({
           data: {

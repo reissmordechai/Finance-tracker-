@@ -10,6 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       limit: body.limit,
       dueDay: body.dueDay,
       amountDue: body.amountDue,
+      apr: body.apr,
     },
   });
   return NextResponse.json(card);

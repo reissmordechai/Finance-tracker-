@@ -10,6 +10,7 @@ export default function CharityPage() {
   const [owedNote, setOwedNote] = useState("");
   const [showGive, setShowGive] = useState(false);
   const [showOwed, setShowOwed] = useState(false);
+  const [summaryYear, setSummaryYear] = useState(String(new Date().getFullYear()));
 
   const load = () => fetch("/api/charity").then((r) => r.json()).then(setEntries);
   useEffect(() => { load(); }, []);
@@ -17,6 +18,23 @@ export default function CharityPage() {
   const owed = entries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
   const given = entries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
   const balance = owed - given;
+
+  const years = Array.from(new Set(entries.map((e) => e.date.slice(0, 4)))).sort().reverse();
+  const yearEntries = entries.filter((e) => e.date.slice(0, 4) === summaryYear && e.type === "given");
+  const byKind: Record<string, number> = {};
+  yearEntries.forEach((e) => { byKind[e.kind || "cash"] = (byKind[e.kind || "cash"] || 0) + e.amount; });
+  const yearTotal = yearEntries.reduce((s, e) => s + e.amount, 0);
+
+  const exportCsv = () => {
+    const header = ["Date", "Type", "Kind", "Amount", "Note"];
+    const rows = entries.map((e) => [e.date.slice(0, 10), e.type, e.kind || "", e.amount.toFixed(2), e.note || ""]);
+    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "charity.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const recordGift = async () => {
     const amt = parseFloat(giveAmount);
@@ -82,6 +100,33 @@ export default function CharityPage() {
             <input type="number" step="0.01" value={owedAmount} onChange={(e) => setOwedAmount(e.target.value)} placeholder="Amount to set aside" style={{ width: 160 }} />
             <input value={owedNote} onChange={(e) => setOwedNote(e.target.value)} placeholder="Note (optional)" style={{ flex: 1, minWidth: 140 }} />
             <button className="btn" onClick={recordObligation}>Save</button>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ fontWeight: 600 }}>Year-end summary</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {years.length > 0 ? (
+              <select value={summaryYear} onChange={(e) => setSummaryYear(e.target.value)} style={{ width: 100 }}>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            ) : (
+              <input value={summaryYear} onChange={(e) => setSummaryYear(e.target.value)} style={{ width: 100 }} />
+            )}
+            <button className="btn-outline" onClick={exportCsv} style={{ padding: "6px 12px", fontSize: 12 }}>Export CSV</button>
+          </div>
+        </div>
+        <div className="num" style={{ fontSize: 22, fontWeight: 700, color: "#2F6B4F" }}>${yearTotal.toFixed(2)} given in {summaryYear}</div>
+        {Object.keys(byKind).length > 0 && (
+          <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+            {Object.entries(byKind).map(([kind, amt]) => (
+              <div key={kind}>
+                <div style={{ fontSize: 11, color: "#8A8370", textTransform: "capitalize" }}>{kind === "time" ? "Time/effort" : kind}</div>
+                <div className="num" style={{ fontWeight: 600 }}>${amt.toFixed(2)}</div>
+              </div>
+            ))}
           </div>
         )}
       </div>

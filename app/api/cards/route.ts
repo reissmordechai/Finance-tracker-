@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
       limit: body.limit || 0,
       dueDay: body.dueDay || null,
       amountDue: body.amountDue || 0,
+      apr: body.apr ?? null,
     },
   });
   return NextResponse.json(card);

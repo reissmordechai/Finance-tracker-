@@ -19,6 +19,7 @@ export async function GET() {
 
   const rules = await prisma.recurring.findMany({ where: { paused: false, postTo: "transaction" } });
   const cards = await prisma.card.findMany();
+  const loans = await prisma.loan.findMany();
 
   type Event = { date: Date; label: string; delta: number };
   const events: Event[] = [];
@@ -41,6 +42,15 @@ export async function GET() {
       const dueDate = new Date(today.getFullYear(), today.getMonth(), c.dueDay);
       if (dueDate >= today && dueDate <= endOfMonth) {
         events.push({ date: dueDate, label: `${c.name} payment due`, delta: -c.amountDue });
+      }
+    }
+  }
+
+  for (const l of loans) {
+    if (l.minPayment && l.dueDay) {
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), l.dueDay);
+      if (dueDate >= today && dueDate <= endOfMonth) {
+        events.push({ date: dueDate, label: `${l.name} payment due`, delta: -l.minPayment });
       }
     }
   }

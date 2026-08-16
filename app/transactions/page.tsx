@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { parseCsv } from "@/lib/csv";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -148,12 +150,75 @@ export default function TransactionsPage() {
   const charityByTxn: Record<string, any> = {};
   charityEntries.forEach((c) => { if (c.transactionId) charityByTxn[c.transactionId] = c; });
 
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportSummary(null);
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (rows.length < 2) { setImporting(false); setImportSummary("No data rows found."); return; }
+
+    const header = rows[0].map((h) => h.trim().toLowerCase());
+    const idx = {
+      date: header.findIndex((h) => h.includes("date")),
+      type: header.findIndex((h) => h === "type"),
+      category: header.findIndex((h) => h.includes("account") || h.includes("category")),
+      amount: header.findIndex((h) => h.includes("amount")),
+      vendor: header.findIndex((h) => h.includes("vendor")),
+      note: header.findIndex((h) => h.includes("note")),
+    };
+    if (idx.date === -1 || idx.amount === -1) {
+      setImporting(false);
+      setImportSummary("Couldn't find Date and Amount columns — expected headers like Date, Type, Account, Amount.");
+      return;
+    }
+
+    let success = 0, failed = 0;
+    for (const row of rows.slice(1)) {
+      const amt = parseFloat((row[idx.amount] || "").replace(/[^0-9.\-]/g, ""));
+      const dateVal = row[idx.date];
+      if (!amt || !dateVal) { failed++; continue; }
+      const parsedDate = new Date(dateVal);
+      if (isNaN(parsedDate.getTime())) { failed++; continue; }
+      try {
+        await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: idx.type !== -1 && row[idx.type]?.toLowerCase().includes("income") ? "income" : "expense",
+            category: idx.category !== -1 ? row[idx.category] || "Imported" : "Imported",
+            amount: Math.abs(amt),
+            date: parsedDate.toISOString(),
+            vendor: idx.vendor !== -1 ? row[idx.vendor] : undefined,
+            note: idx.note !== -1 ? row[idx.note] : undefined,
+          }),
+        });
+        success++;
+      } catch { failed++; }
+    }
+    setImporting(false);
+    setImportSummary(`Imported ${success} transaction${success !== 1 ? "s" : ""}${failed ? `, ${failed} skipped` : ""}.`);
+    load();
+    loadCategories();
+  };
+
   return (
     <main className="page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ color: "#0F3D2E" }}>Transactions</h1>
-        <a href="/api/export" className="btn-outline" style={{ textDecoration: "none", height: "fit-content" }}>Export CSV</a>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <label className="btn-outline" style={{ cursor: "pointer" }}>
+            {importing ? "Importing…" : "Import CSV"}
+            <input type="file" accept=".csv" onChange={handleImport} style={{ display: "none" }} />
+          </label>
+          <a href="/api/export" className="btn-outline" style={{ textDecoration: "none" }}>Export CSV</a>
+        </div>
       </div>
+      {importSummary && <div style={{ fontSize: 12.5, color: "#5B5540", marginTop: 4, marginBottom: 8 }}>{importSummary}</div>}
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 110 }}>
@@ -177,6 +242,28 @@ export default function TransactionsPage() {
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" style={{ width: 180 }} />
+        <div style={{ display: "flex", gap: 4 }}>
+          {["Joint", "Personal"].map((label) => {
+            const has = tags.split(",").map((t) => t.trim().toLowerCase()).includes(label.toLowerCase());
+            return (
+              <button
+                key={label}
+                type="button"
+                className={has ? "btn" : "btn-outline"}
+                style={{ padding: "9px 12px", fontSize: 12 }}
+                onClick={() => {
+                  const parts = tags.split(",").map((t) => t.trim()).filter(Boolean);
+                  const other = label === "Joint" ? "Personal" : "Joint";
+                  const withoutOther = parts.filter((p) => p.toLowerCase() !== other.toLowerCase());
+                  if (has) setTags(withoutOther.filter((p) => p.toLowerCase() !== label.toLowerCase()).join(", "));
+                  else setTags([...withoutOther.filter((p) => p.toLowerCase() !== label.toLowerCase()), label].join(", "));
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
         <div>
           <label className="btn-outline" style={{ display: "inline-block", cursor: "pointer" }}>
             {uploading ? "…" : receiptImage ? "Photo added ✓" : "Add receipt"}

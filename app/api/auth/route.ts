@@ -6,6 +6,6 @@ export async function POST(req: NextRequest) {
   if (!checkPassword(password)) {
     return NextResponse.json({ error: "Wrong password" }, { status: 401 });
   }
-  await setSessionCookie();
+  await setSessionCookie(password);
   return NextResponse.json({ ok: true });
 }

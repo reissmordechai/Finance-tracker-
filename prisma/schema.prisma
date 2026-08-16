@@ -191,6 +191,16 @@ model NetWorthSnapshot {
   value Float
 }
 
+model Loan {
+  id          String  @id @default(cuid())
+  name        String  // e.g. "Mortgage", "Car loan", "Student loan"
+  principal   Float   // original amount borrowed
+  balance     Float   // current remaining balance
+  apr         Float?  // annual % rate, optional
+  minPayment  Float?
+  dueDay      Int?
+}
+
 model CharityEntry {
   id            String   @id @default(cuid())
   date          DateTime

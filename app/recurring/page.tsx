@@ -22,6 +22,7 @@ function countRemaining(startDate: string, endDate: string | null, frequency: st
 export default function RecurringPage() {
   const [rules, setRules] = useState<any[]>([]);
   const [holdings, setHoldings] = useState<any[]>([]);
+  const [txns, setTxns] = useState<any[]>([]);
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
@@ -30,12 +31,40 @@ export default function RecurringPage() {
   const [endDate, setEndDate] = useState("");
   const [postTo, setPostTo] = useState("transaction");
   const [holdingId, setHoldingId] = useState("");
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewAmount, setReviewAmount] = useState("");
 
   const load = () => fetch("/api/recurring").then((r) => r.json()).then(setRules);
   useEffect(() => {
     load();
     fetch("/api/holdings").then((r) => r.json()).then(setHoldings);
+    fetch("/api/transactions").then((r) => r.json()).then(setTxns);
   }, []);
+
+  const lastTxnFor = (ruleId: string) => txns.filter((t) => t.recurringId === ruleId).sort((a, b) => b.date.localeCompare(a.date))[0];
+
+  const saveReview = async (rule: any) => {
+    const txn = lastTxnFor(rule.id);
+    const newAmt = parseFloat(reviewAmount);
+    if (!txn || !newAmt) return;
+    await fetch(`/api/transactions/${txn.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: newAmt }),
+    });
+    setReviewId(null);
+    fetch("/api/transactions").then((r) => r.json()).then(setTxns);
+  };
+
+  const applyToRule = async (rule: any) => {
+    await fetch(`/api/recurring/${rule.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: parseFloat(reviewAmount) }),
+    });
+    setReviewId(null);
+    load();
+  };
 
   const add = async () => {
     if (postTo === "holding") {
@@ -45,7 +74,7 @@ export default function RecurringPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: postTo === "holding" ? "expense" : type,
+        type: postTo === "holding" || postTo === "charity" ? "expense" : type,
         category: postTo === "holding" ? (holdings.find((h) => h.id === holdingId)?.name || "Holding") : category,
         amount: parseFloat(amount), frequency, startDate, endDate: endDate || null, postTo, holdingId: holdingId || null,
       }),
@@ -80,6 +109,7 @@ export default function RecurringPage() {
         <select value={postTo} onChange={(e) => setPostTo(e.target.value)} style={{ width: 160 }}>
           <option value="transaction">Post to: Transaction</option>
           <option value="holding">Post to: Holding</option>
+          <option value="charity">Post to: Charity gift</option>
         </select>
         {postTo === "transaction" ? (
           <>
@@ -89,11 +119,13 @@ export default function RecurringPage() {
             </select>
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Account" style={{ width: 140 }} />
           </>
-        ) : (
+        ) : postTo === "holding" ? (
           <select value={holdingId} onChange={(e) => setHoldingId(e.target.value)} style={{ width: 220 }}>
             <option value="">Choose a holding…</option>
             {holdings.map((h) => <option key={h.id} value={h.id}>{h.name}{h.account ? ` (${h.account})` : ""}</option>)}
           </select>
+        ) : (
+          <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Label, e.g. Monthly gift" style={{ width: 180 }} />
         )}
         <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <select value={frequency} onChange={(e) => setFrequency(e.target.value)} style={{ width: 120 }}>
@@ -115,12 +147,14 @@ export default function RecurringPage() {
       <div style={{ display: "grid", gap: 10 }}>
         {rules.map((r) => {
           const remaining = countRemaining(r.startDate, r.endDate, r.frequency, r.lastGenerated);
+          const lastTxn = r.postTo === "transaction" ? lastTxnFor(r.id) : null;
+          const diffPct = lastTxn ? Math.abs((lastTxn.amount - r.amount) / r.amount) * 100 : 0;
           return (
             <div className="card" key={r.id} style={{ opacity: r.paused ? 0.6 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>
-                    {r.category} <span style={{ fontSize: 11, color: "#8A8370" }}>({r.frequency}{r.postTo === "holding" ? " · into holding" : ""})</span>
+                    {r.category} <span style={{ fontSize: 11, color: "#8A8370" }}>({r.frequency}{r.postTo === "holding" ? " · into holding" : r.postTo === "charity" ? " · charity gift" : ""})</span>
                   </div>
                   <div style={{ fontSize: 12, color: "#8A8370" }}>
                     {r.startDate.slice(0, 10)}{r.endDate ? ` → ${r.endDate.slice(0, 10)}` : " → ongoing"}
@@ -136,6 +170,28 @@ export default function RecurringPage() {
                   <button onClick={() => remove(r.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
                 </div>
               </div>
+
+              {lastTxn && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed #D8D0BC" }}>
+                  {diffPct >= 10 && reviewId !== r.id && (
+                    <div style={{ fontSize: 12.5, color: "#9C4221", marginBottom: 6 }}>
+                      Last posted amount (${lastTxn.amount.toFixed(2)}) is {diffPct.toFixed(0)}% off from this rule's ${r.amount.toFixed(2)}.
+                    </div>
+                  )}
+                  <button className="btn-outline" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => { setReviewId(reviewId === r.id ? null : r.id); setReviewAmount(String(lastTxn.amount)); }}>
+                    {reviewId === r.id ? "Cancel" : "Review last posted amount"}
+                  </button>
+                  {reviewId === r.id && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <input type="number" step="0.01" value={reviewAmount} onChange={(e) => setReviewAmount(e.target.value)} style={{ width: 110 }} />
+                      <button className="btn" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => saveReview(r)}>Fix that transaction</button>
+                      {Math.abs((parseFloat(reviewAmount) - r.amount) / r.amount) * 100 >= 10 && (
+                        <button className="btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => applyToRule(r)}>Also update rule to ${parseFloat(reviewAmount || "0").toFixed(2)}</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
