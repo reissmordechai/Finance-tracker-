@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function SignupPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -11,13 +12,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   const submit = async () => {
-    if (!email || !password) return;
+    if (!name || !email || !password) return;
     setLoading(true);
     setError("");
-    const res = await fetch("/api/auth", {
+    const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ name, email, password }),
     });
     setLoading(false);
     if (res.ok) {
@@ -25,7 +26,7 @@ export default function LoginPage() {
       router.refresh();
     } else {
       const data = await res.json().catch(() => ({}));
-      setError(data.error || "Wrong email or password");
+      setError(data.error || "Something went wrong");
     }
   };
 
@@ -41,33 +42,19 @@ export default function LoginPage() {
             display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px",
             fontSize: 22, fontWeight: 700, fontFamily: "'Spectral', serif",
           }}>$</div>
-          <h1 style={{ fontSize: 21 }}>Finance Tracker</h1>
-          <div style={{ fontSize: 12.5, color: "#8A8370" }}>Log in to your account</div>
+          <h1 style={{ fontSize: 21 }}>Create your account</h1>
+          <div style={{ fontSize: 12.5, color: "#8A8370" }}>Your own private data — nobody else sees it</div>
         </div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Email"
-          autoFocus
-          style={{ width: "100%", marginBottom: 10 }}
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Password"
-          style={{ width: "100%", marginBottom: 10 }}
-        />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoFocus style={{ width: "100%", marginBottom: 10 }} />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ width: "100%", marginBottom: 10 }} />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Password (6+ characters)" style={{ width: "100%", marginBottom: 10 }} />
         {error && <div style={{ color: "#9C4221", fontSize: 13, marginBottom: 10, fontWeight: 500 }}>{error}</div>}
         <button className="btn" onClick={submit} disabled={loading} style={{ width: "100%" }}>
-          {loading ? "Checking…" : "Log in"}
+          {loading ? "Creating…" : "Create account"}
         </button>
         <div style={{ textAlign: "center", marginTop: 16, fontSize: 13 }}>
-          <span style={{ color: "#8A8370" }}>New here? </span>
-          <Link href="/signup" style={{ color: "#B8863E", fontWeight: 600 }}>Create an account</Link>
+          <span style={{ color: "#8A8370" }}>Already have an account? </span>
+          <Link href="/login" style={{ color: "#B8863E", fontWeight: 600 }}>Log in</Link>
         </div>
       </div>
     </div>

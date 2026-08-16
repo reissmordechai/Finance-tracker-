@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME } from "./lib/auth";
 
-// Same Web Crypto approach as lib/auth.ts — required here since middleware
-// always runs on Vercel's Edge runtime, which doesn't support Node's crypto.
-async function hashPassword(password: string): Promise<string> {
+// Same HMAC verification as lib/auth.ts — required here since middleware
+// always runs on Vercel's Edge runtime, which can't reach the database.
+async function signUserId(userId: string): Promise<string> {
   const pepper = process.env.AUTH_SECRET || "change-me";
-  const data = new TextEncoder().encode(password + pepper);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(pepper), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(userId));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function validPasswords(): string[] {
-  return [process.env.APP_PASSWORD || "", process.env.APP_PASSWORD_2 || ""].filter(Boolean);
+async function verifyToken(token: string): Promise<boolean> {
+  const [userId, sig] = token.split(".");
+  if (!userId || !sig) return false;
+  return sig === (await signUserId(userId));
 }
 
 export async function middleware(req: NextRequest) {
@@ -21,6 +22,7 @@ export async function middleware(req: NextRequest) {
 
   if (
     pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron")
   ) {
@@ -28,12 +30,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const cookie = req.cookies.get(SESSION_COOKIE_NAME);
-  let ok = false;
-  if (cookie) {
-    for (const pw of validPasswords()) {
-      if (cookie.value === (await hashPassword(pw))) { ok = true; break; }
-    }
-  }
+  const ok = cookie ? await verifyToken(cookie.value) : false;
 
   if (!ok) {
     if (pathname.startsWith("/api")) {

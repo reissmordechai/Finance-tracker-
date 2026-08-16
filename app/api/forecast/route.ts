@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/requireUser";
 
 function addInterval(date: Date, freq: string): Date {
   const d = new Date(date.getTime());
@@ -10,16 +11,20 @@ function addInterval(date: Date, freq: string): Date {
 }
 
 export async function GET() {
-  const bankAccounts = await prisma.bankAccount.findMany();
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+  const { userId } = auth;
+
+  const bankAccounts = await prisma.bankAccount.findMany({ where: { userId } });
   const startBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-  const rules = await prisma.recurring.findMany({ where: { paused: false, postTo: "transaction" } });
-  const cards = await prisma.card.findMany();
-  const loans = await prisma.loan.findMany();
+  const rules = await prisma.recurring.findMany({ where: { userId, paused: false, postTo: "transaction" } });
+  const cards = await prisma.card.findMany({ where: { userId } });
+  const loans = await prisma.loan.findMany({ where: { userId } });
 
   type Event = { date: Date; label: string; delta: number };
   const events: Event[] = [];

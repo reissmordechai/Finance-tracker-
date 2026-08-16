@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentPrice } from "@/lib/stockPrice";
+import { requireUser } from "@/lib/requireUser";
 
 export async function GET() {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
   const holdings = await prisma.holding.findMany({
+    where: { userId: auth.userId },
     include: {
       entries: { orderBy: { date: "asc" } },
       history: { orderBy: { date: "asc" } },
@@ -12,11 +16,9 @@ export async function GET() {
   return NextResponse.json(holdings);
 }
 
-// body: { name, account?, symbol?, amount, date }
-// If a symbol is given, we look up today's price and record how many
-// "shares" that contribution bought — that's what lets the cron job later
-// compute value = shares × current price instead of just overwriting a number.
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
   const body = await req.json();
   let shares = 0;
 
@@ -27,6 +29,7 @@ export async function POST(req: NextRequest) {
 
   const holding = await prisma.holding.create({
     data: {
+      userId: auth.userId,
       name: body.name,
       account: body.account || null,
       symbol: body.symbol || null,

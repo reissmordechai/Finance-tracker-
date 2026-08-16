@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 
 const links = [
@@ -26,14 +26,27 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
-  if (pathname === "/login" || pathname === "/summary") return null;
+  const router = useRouter();
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/summary") return null;
+
+  const logout = async () => {
+    await fetch("/api/auth", { method: "DELETE" });
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <header className="app-header">
       <div className="app-header-inner">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div className="app-title">Finance Tracker</div>
-          <ThemeToggle />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <ThemeToggle />
+            <button onClick={logout} style={{
+              border: "1px solid rgba(242,238,227,0.3)", background: "transparent", color: "#F2EEE3",
+              borderRadius: 20, padding: "5px 10px", fontSize: 12, cursor: "pointer",
+            }}>Log out</button>
+          </div>
         </div>
         <nav className="app-nav">
           {links.map((l) => {

@@ -1,6 +1,6 @@
 // Prisma schema for the standalone finance tracker.
-// Maps to the same data model as the in-Claude artifact version.
-// Run `npm run prisma:push` after setting DATABASE_URL to create these tables.
+// Multi-user: every top-level table is scoped by userId. Run
+// `npm run prisma:push` after setting DATABASE_URL to create these tables.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,15 +11,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String   // PBKDF2 hash, hex-encoded
+  passwordSalt String   // random per-user salt, hex-encoded
+  createdAt    DateTime @default(now())
+}
+
 model Category {
   id     String @id @default(cuid())
+  userId String
   name   String
   type   String // "income" | "expense"
-  @@unique([name, type])
+  @@unique([userId, name, type])
 }
 
 model Transaction {
   id             String   @id @default(cuid())
+  userId         String
   type           String   // "income" | "expense"
   date           DateTime
   category       String
@@ -57,6 +68,7 @@ model Item {
 
 model Card {
   id         String   @id @default(cuid())
+  userId     String
   name       String
   limit      Float    @default(0)
   dueDay     Int?
@@ -78,6 +90,7 @@ model CardPayment {
 
 model BankAccount {
   id           String @id @default(cuid())
+  userId       String
   name         String
   balance      Float  @default(0)
   currencyCode String @default("USD")
@@ -85,6 +98,7 @@ model BankAccount {
 
 model Transfer {
   id              String   @id @default(cuid())
+  userId          String
   fromAccountId   String
   toAccountId     String
   amount          Float    // deducted from source, in source's currency
@@ -94,19 +108,24 @@ model Transfer {
 }
 
 model Vendor {
-  id   String @id @default(cuid())
-  name String @unique
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  @@unique([userId, name])
 }
 
 model Budget {
   id       String  @id @default(cuid())
-  category String  @unique
+  userId   String
+  category String
   limit    Float
   rollover Boolean @default(false)
+  @@unique([userId, category])
 }
 
 model Goal {
   id           String    @id @default(cuid())
+  userId       String
   name         String
   targetAmount Float
   targetDate   DateTime?
@@ -125,6 +144,7 @@ model GoalContribution {
 // --- Holdings: the piece that gets auto-updated by the cron job ---
 model Holding {
   id           String          @id @default(cuid())
+  userId       String
   name         String          // e.g. "S&P 500 Index Fund"
   account      String?         // e.g. "Fidelity IRA", "Fidelity Brokerage" — lets you track the same fund separately per account
   symbol       String?         // e.g. "VOO" — used by the cron job to look up price. Leave blank for manual-only tracking.
@@ -167,6 +187,7 @@ model HoldingValue {
 
 model Recurring {
   id            String    @id @default(cuid())
+  userId        String
   type          String
   category      String
   amount        Float
@@ -180,12 +201,12 @@ model Recurring {
   bankAccountId String?
   checkNumber   String?
   note          String?
-  postTo        String    @default("transaction") // "transaction" | "holding"
+  postTo        String    @default("transaction") // "transaction" | "holding" | "charity"
   holdingId     String?   // used when postTo = "holding" — which holding to contribute into
 }
 
 model Settings {
-  id                  String    @id @default("singleton")
+  userId              String    @id
   location            String    @default("")
   currency            String    @default("$")
   baseCurrencyCode    String    @default("USD") // e.g. "USD", "EUR" — used for foreign-currency conversion
@@ -196,6 +217,7 @@ model Settings {
 
 model ShoppingItem {
   id        String   @id @default(cuid())
+  userId    String
   name      String
   note      String?
   category  String?  // optional link to a budget account
@@ -204,19 +226,22 @@ model ShoppingItem {
 }
 
 model TaxProfile {
-  id    String @id @default(cuid())
-  label String
-  rate  Float
+  id     String @id @default(cuid())
+  userId String
+  label  String
+  rate   Float
 }
 
 model NetWorthSnapshot {
-  id    String   @id @default(cuid())
-  date  DateTime
-  value Float
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime
+  value  Float
 }
 
 model Loan {
   id          String  @id @default(cuid())
+  userId      String
   name        String  // e.g. "Mortgage", "Car loan", "Student loan"
   principal   Float   // original amount borrowed
   balance     Float   // current remaining balance
@@ -227,6 +252,7 @@ model Loan {
 
 model CharityEntry {
   id            String   @id @default(cuid())
+  userId        String
   date          DateTime
   type          String   // "owed" | "given"
   kind          String   @default("cash") // "cash" | "time" | "other" — how it was given, for "given" entries

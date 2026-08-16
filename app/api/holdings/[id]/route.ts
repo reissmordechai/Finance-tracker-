@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentPrice } from "@/lib/stockPrice";
+import { requireUser } from "@/lib/requireUser";
 
-// body: { action: "contribute", amount, date } | { action: "updateValue", value, date }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+  const holding = await prisma.holding.findFirst({ where: { id: params.id, userId: auth.userId } });
+  if (!holding) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await req.json();
 
   if (body.action === "contribute") {
-    const holding = await prisma.holding.findUnique({ where: { id: params.id } });
     let addedShares = 0;
-    if (holding?.symbol) {
+    if (holding.symbol) {
       const price = await getCurrentPrice(holding.symbol);
       if (price) addedShares = body.amount / price;
     }
@@ -34,14 +38,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
   }
 
-  const holding = await prisma.holding.findUnique({
+  const updated = await prisma.holding.findUnique({
     where: { id: params.id },
     include: { entries: true, history: true },
   });
-  return NextResponse.json(holding);
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  await prisma.holding.delete({ where: { id: params.id } });
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+  await prisma.holding.deleteMany({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json({ ok: true });
 }

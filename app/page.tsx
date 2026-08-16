@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/auth";
 import LineChart from "./components/LineChart";
 import BankAccountsCard from "./components/BankAccountsCard";
 import BreakdownBar from "./components/BreakdownBar";
@@ -9,16 +11,19 @@ import BreakdownBar from "./components/BreakdownBar";
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const holdings = await prisma.holding.findMany();
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
+
+  const holdings = await prisma.holding.findMany({ where: { userId } });
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
 
-  const bankAccounts = await prisma.bankAccount.findMany();
+  const bankAccounts = await prisma.bankAccount.findMany({ where: { userId } });
   const totalBank = bankAccounts.reduce((s, a) => s + a.balance, 0);
 
-  const cards = await prisma.card.findMany({ include: { payments: true } });
-  const loans = await prisma.loan.findMany();
+  const cards = await prisma.card.findMany({ where: { userId }, include: { payments: true } });
+  const loans = await prisma.loan.findMany({ where: { userId } });
   const loanDebt = loans.reduce((s, l) => s + l.balance, 0);
-  const transactions = await prisma.transaction.findMany();
+  const transactions = await prisma.transaction.findMany({ where: { userId } });
   const cardDebt = cards.reduce((sum, c) => {
     const charged = transactions.filter((t) => t.type === "expense" && t.cardId === c.id).reduce((s, t) => s + t.amount, 0);
     const paid = c.payments.reduce((s, p) => s + p.amount, 0);
@@ -28,14 +33,14 @@ export default async function Dashboard() {
 
   const netWorth = totalBank + totalHoldings - totalDebt;
 
-  const netWorthHistory = await prisma.netWorthSnapshot.findMany({ orderBy: { date: "asc" } });
+  const netWorthHistory = await prisma.netWorthSnapshot.findMany({ where: { userId }, orderBy: { date: "asc" } });
   const chartPoints = netWorthHistory.map((s) => ({ date: s.date.toISOString(), value: s.value }));
 
-  const recentTxns = await prisma.transaction.findMany({ orderBy: { date: "desc" }, take: 5 });
+  const recentTxns = await prisma.transaction.findMany({ where: { userId }, orderBy: { date: "desc" }, take: 5 });
   const cardsDue = cards.filter((c) => c.amountDue > 0);
 
   // Budget alerts — this month's spending vs each budget's limit
-  const budgets = await prisma.budget.findMany();
+  const budgets = await prisma.budget.findMany({ where: { userId } });
   const now = new Date();
   const ym = now.toISOString().slice(0, 7);
   const monthExpenses = transactions.filter((t) => t.type === "expense" && t.date.toISOString().slice(0, 7) === ym);
@@ -45,7 +50,7 @@ export default async function Dashboard() {
     return { category: b.category, spent, limit: b.limit, pct };
   }).filter((b) => b.pct >= 80);
 
-  const charityEntries = await prisma.charityEntry.findMany();
+  const charityEntries = await prisma.charityEntry.findMany({ where: { userId } });
   const charityOwed = charityEntries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
   const charityGiven = charityEntries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
   const charityBalance = charityOwed - charityGiven;

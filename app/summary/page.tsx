@@ -1,27 +1,32 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SummaryPage() {
-  const holdings = await prisma.holding.findMany();
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
+
+  const holdings = await prisma.holding.findMany({ where: { userId } });
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
 
-  const bankAccounts = await prisma.bankAccount.findMany();
+  const bankAccounts = await prisma.bankAccount.findMany({ where: { userId } });
   const totalBank = bankAccounts.reduce((s, a) => s + a.balance, 0);
 
-  const cards = await prisma.card.findMany({ include: { payments: true } });
-  const transactions = await prisma.transaction.findMany();
+  const cards = await prisma.card.findMany({ where: { userId }, include: { payments: true } });
+  const transactions = await prisma.transaction.findMany({ where: { userId } });
   const cardDebt = cards.reduce((sum, c) => {
     const charged = transactions.filter((t) => t.type === "expense" && t.cardId === c.id).reduce((s, t) => s + t.amount, 0);
     const paid = c.payments.reduce((s, p) => s + p.amount, 0);
     return sum + (charged - paid);
   }, 0);
-  const loans = await prisma.loan.findMany();
+  const loans = await prisma.loan.findMany({ where: { userId } });
   const loanDebt = loans.reduce((s, l) => s + l.balance, 0);
 
   const netWorth = totalBank + totalHoldings - cardDebt - loanDebt;
 
-  const charityEntries = await prisma.charityEntry.findMany();
+  const charityEntries = await prisma.charityEntry.findMany({ where: { userId } });
   const charityOwed = charityEntries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
   const charityGiven = charityEntries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
   const charityBalance = charityOwed - charityGiven;

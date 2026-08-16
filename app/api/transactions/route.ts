@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/requireUser";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
   const trash = req.nextUrl.searchParams.get("trash") === "1";
   const txns = await prisma.transaction.findMany({
-    where: trash ? { deletedAt: { not: null } } : { deletedAt: null },
+    where: { userId: auth.userId, ...(trash ? { deletedAt: { not: null } } : { deletedAt: null }) },
     include: { items: true },
     orderBy: { date: "desc" },
   });
@@ -12,9 +15,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
   const body = await req.json();
   const txn = await prisma.transaction.create({
     data: {
+      userId: auth.userId,
       type: body.type,
       date: new Date(body.date),
       category: body.category,

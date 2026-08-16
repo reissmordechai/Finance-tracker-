@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/requireUser";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
   const body = await req.json();
-  const account = await prisma.bankAccount.update({
-    where: { id: params.id },
+  await prisma.bankAccount.updateMany({
+    where: { id: params.id, userId: auth.userId },
     data: { name: body.name, balance: body.balance },
   });
+  const account = await prisma.bankAccount.findFirst({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json(account);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  await prisma.bankAccount.delete({ where: { id: params.id } });
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+  await prisma.bankAccount.deleteMany({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json({ ok: true });
 }

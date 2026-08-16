@@ -43,11 +43,12 @@ export async function GET(req: NextRequest) {
         }
       } else if (rule.postTo === "charity") {
         await prisma.charityEntry.create({
-          data: { date: cursor, type: "given", kind: "cash", amount: rule.amount, note: `Recurring gift: ${rule.category}` },
+          data: { userId: rule.userId, date: cursor, type: "given", kind: "cash", amount: rule.amount, note: `Recurring gift: ${rule.category}` },
         });
       } else {
         await prisma.transaction.create({
           data: {
+            userId: rule.userId,
             type: rule.type,
             date: cursor,
             category: rule.category,

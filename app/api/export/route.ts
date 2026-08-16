@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/requireUser";
 
 function escapeCsv(val: any): string {
   const s = String(val ?? "");
@@ -10,7 +11,9 @@ function escapeCsv(val: any): string {
 }
 
 export async function GET() {
-  const txns = await prisma.transaction.findMany({ orderBy: { date: "desc" } });
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+  const txns = await prisma.transaction.findMany({ where: { userId: auth.userId }, orderBy: { date: "desc" } });
 
   const header = ["Date", "Type", "Account", "Amount", "Vendor", "Note", "Payment Method"];
   const rows = txns.map((t) => [
