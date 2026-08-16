@@ -75,5 +75,9 @@ export async function GET(req: NextRequest) {
   const cutoff = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
   const purged = await prisma.transaction.deleteMany({ where: { deletedAt: { lt: cutoff } } });
 
+  // Clean out old login-attempt records too, so that table doesn't grow forever
+  const attemptCutoff = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  await prisma.loginAttempt.deleteMany({ where: { createdAt: { lt: attemptCutoff } } });
+
   return NextResponse.json({ ok: true, checkedAt: today.toISOString(), results, trashPurged: purged.count });
 }

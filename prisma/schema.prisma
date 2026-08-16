@@ -23,6 +23,13 @@ model User {
   createdAt    DateTime @default(now())
 }
 
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
 model Category {
   id     String @id @default(cuid())
   userId String
