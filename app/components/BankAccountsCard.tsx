@@ -1,15 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
 
+// Estimated current balance using daily-compounded interest since the
+// balance was last manually confirmed. This is an estimate to fill the gap
+// between real statements — it never overwrites the actual entered balance.
+function estimateWithInterest(balance: number, apy: number | null, lastConfirmedAt: string): number {
+  if (!apy) return balance;
+  const days = (Date.now() - new Date(lastConfirmedAt).getTime()) / 86400000;
+  if (days <= 0) return balance;
+  const dailyRate = apy / 100 / 365;
+  return balance * Math.pow(1 + dailyRate, days);
+}
+
 export default function BankAccountsCard() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [charityBalance, setCharityBalance] = useState(0);
   const [baseCurrency, setBaseCurrency] = useState("USD");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBalance, setEditBalance] = useState("");
+  const [editingRateId, setEditingRateId] = useState<string | null>(null);
+  const [editRate, setEditRate] = useState("");
   const [newName, setNewName] = useState("");
   const [newBalance, setNewBalance] = useState("");
   const [newCurrency, setNewCurrency] = useState("USD");
+  const [newApy, setNewApy] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [fromId, setFromId] = useState("");
@@ -61,6 +75,18 @@ export default function BankAccountsCard() {
     setEditingId(null);
     load();
   };
+
+  const startEditRate = (a: any) => { setEditingRateId(a.id); setEditRate(a.apy != null ? String(a.apy) : ""); };
+  const saveRate = async (id: string) => {
+    await fetch(`/api/bankaccounts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apy: editRate === "" ? null : parseFloat(editRate) }),
+    });
+    setEditingRateId(null);
+    load();
+  };
+
   const remove = async (id: string) => {
     await fetch(`/api/bankaccounts/${id}`, { method: "DELETE" });
     load();
@@ -70,9 +96,9 @@ export default function BankAccountsCard() {
     await fetch("/api/bankaccounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, balance: parseFloat(newBalance) || 0, currencyCode: newCurrency }),
+      body: JSON.stringify({ name: newName, balance: parseFloat(newBalance) || 0, currencyCode: newCurrency, apy: newApy === "" ? null : newApy }),
     });
-    setNewName(""); setNewBalance(""); setShowAdd(false);
+    setNewName(""); setNewBalance(""); setNewApy(""); setShowAdd(false);
     load();
   };
 
@@ -106,8 +132,9 @@ export default function BankAccountsCard() {
 
       {showAdd && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Checking" style={{ flex: 1, minWidth: 140 }} />
-          <input type="number" step="0.01" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="Balance" style={{ width: 120 }} />
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Savings" style={{ flex: 1, minWidth: 140 }} />
+          <input type="number" step="0.01" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} placeholder="Balance" style={{ width: 110 }} />
+          <input type="number" step="0.01" value={newApy} onChange={(e) => setNewApy(e.target.value)} placeholder="APY % (optional)" style={{ width: 130 }} />
           <select value={newCurrency} onChange={(e) => setNewCurrency(e.target.value)} style={{ width: 90 }}>
             {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -135,24 +162,48 @@ export default function BankAccountsCard() {
         <div style={{ color: "#8A8370", fontSize: 13 }}>No accounts yet — add one above.</div>
       ) : (
         <>
-          {accounts.map((a) => (
-            <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
-              <span style={{ fontSize: 13.5 }}>{a.name}{a.currencyCode && a.currencyCode !== baseCurrency && <span className="pill" style={{ marginLeft: 6 }}>{a.currencyCode}</span>}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {editingId === a.id ? (
-                  <>
-                    <input type="number" step="0.01" autoFocus value={editBalance} onChange={(e) => setEditBalance(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(a.id)} />
-                    <button className="btn" onClick={() => saveEdit(a.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
-                  </>
-                ) : (
-                  <button className="btn-outline" onClick={() => startEdit(a)} style={{ padding: "4px 10px", fontSize: 12 }}>
-                    <span className="num">{a.balance.toFixed(2)} {a.currencyCode || "USD"}</span>
-                  </button>
+          {accounts.map((a) => {
+            const estimated = estimateWithInterest(a.balance, a.apy, a.lastConfirmedAt);
+            const showEstimate = a.apy && Math.abs(estimated - a.balance) >= 0.01;
+            return (
+              <div key={a.id} style={{ padding: "8px 0", borderTop: "1px solid #EFEADC" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13.5 }}>
+                    {a.name}
+                    {a.currencyCode && a.currencyCode !== baseCurrency && <span className="pill" style={{ marginLeft: 6 }}>{a.currencyCode}</span>}
+                    {editingRateId === a.id ? (
+                      <span style={{ marginLeft: 6, display: "inline-flex", gap: 4, alignItems: "center" }}>
+                        <input type="number" step="0.01" autoFocus value={editRate} onChange={(e) => setEditRate(e.target.value)} placeholder="APY %" style={{ width: 60 }} onKeyDown={(e) => e.key === "Enter" && saveRate(a.id)} />
+                        <button className="btn" onClick={() => saveRate(a.id)} style={{ padding: "3px 8px", fontSize: 11 }}>Save</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => startEditRate(a)} className="pill" style={{ marginLeft: 6, border: "none", cursor: "pointer" }}>
+                        {a.apy ? `${a.apy}% APY` : "+ rate"}
+                      </button>
+                    )}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {editingId === a.id ? (
+                      <>
+                        <input type="number" step="0.01" autoFocus value={editBalance} onChange={(e) => setEditBalance(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(a.id)} />
+                        <button className="btn" onClick={() => saveEdit(a.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                      </>
+                    ) : (
+                      <button className="btn-outline" onClick={() => startEdit(a)} style={{ padding: "4px 10px", fontSize: 12 }}>
+                        <span className="num">{a.balance.toFixed(2)} {a.currencyCode || "USD"}</span>
+                      </button>
+                    )}
+                    <button onClick={() => remove(a.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                  </div>
+                </div>
+                {showEstimate && (
+                  <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 3, textAlign: "right" }}>
+                    ~${estimated.toFixed(2)} estimated today with interest — confirm your real balance when you check your statement
+                  </div>
                 )}
-                <button onClick={() => remove(a.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed #D8D0BC" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>

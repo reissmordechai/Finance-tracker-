@@ -14,7 +14,13 @@ export async function POST(req: NextRequest) {
   if ("error" in auth) return auth.error;
   const body = await req.json();
   const account = await prisma.bankAccount.create({
-    data: { userId: auth.userId, name: body.name, balance: body.balance || 0, currencyCode: body.currencyCode || "USD" },
+    data: {
+      userId: auth.userId,
+      name: body.name,
+      balance: body.balance || 0,
+      currencyCode: body.currencyCode || "USD",
+      apy: body.apy != null && body.apy !== "" ? parseFloat(body.apy) : null,
+    },
   });
   return NextResponse.json(account);
 }

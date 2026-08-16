@@ -99,11 +99,13 @@ model CardPayment {
 }
 
 model BankAccount {
-  id           String @id @default(cuid())
-  userId       String
-  name         String
-  balance      Float  @default(0)
-  currencyCode String @default("USD")
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  balance         Float     @default(0)
+  currencyCode    String    @default("USD")
+  apy             Float?    // annual % yield, optional — e.g. 3 for a 3% savings/money market account
+  lastConfirmedAt DateTime  @default(now()) // when the balance was last manually entered/confirmed — the estimate grows from here
 }
 
 model Transfer {
