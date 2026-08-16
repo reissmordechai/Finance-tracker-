@@ -17,6 +17,9 @@ model User {
   name         String
   passwordHash String   // PBKDF2 hash, hex-encoded
   passwordSalt String   // random per-user salt, hex-encoded
+  role         String   @default("user") // "admin" | "user" — the first person to ever sign up becomes admin automatically
+  approved     Boolean  @default(false)  // new signups need an admin to approve them before they can log in
+  blocked      Boolean  @default(false)  // admin can block an existing account at any time
   createdAt    DateTime @default(now())
 }
 

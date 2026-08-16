@@ -22,6 +22,7 @@ const links = [
   { href: "/calculator", label: "Calculator" },
   { href: "/search", label: "Search" },
   { href: "/settings", label: "Settings" },
+  { href: "/admin", label: "Admin" },
 ];
 
 export default function Nav() {

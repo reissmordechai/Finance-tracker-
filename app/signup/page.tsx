@@ -9,6 +9,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(false);
   const router = useRouter();
 
   const submit = async () => {
@@ -22,13 +23,40 @@ export default function SignupPage() {
     });
     setLoading(false);
     if (res.ok) {
-      router.push("/");
-      router.refresh();
+      const data = await res.json();
+      if (data.status === "pending") {
+        setPending(true);
+      } else {
+        router.push("/");
+        router.refresh();
+      }
     } else {
       const data = await res.json().catch(() => ({}));
       setError(data.error || "Something went wrong");
     }
   };
+
+  if (pending) {
+    return (
+      <div style={{
+        minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(160deg, #0F3D2E 0%, #16553F 100%)", padding: 20,
+      }}>
+        <div className="card" style={{ width: 340, padding: 32, textAlign: "center" }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%", background: "#F0EAD8", color: "#0F3D2E",
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px",
+            fontSize: 22, fontWeight: 700, fontFamily: "'Spectral', serif",
+          }}>✓</div>
+          <h1 style={{ fontSize: 20 }}>Account created</h1>
+          <p style={{ fontSize: 13.5, color: "#5B5540", marginTop: 8 }}>
+            Your account is waiting for approval before you can log in. You'll be able to sign in as soon as it's approved.
+          </p>
+          <Link href="/login" style={{ color: "#B8863E", fontWeight: 600, fontSize: 13, display: "inline-block", marginTop: 12 }}>Back to login</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

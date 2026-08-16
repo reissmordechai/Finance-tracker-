@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { blocked: true } });
+  if (!me || me.blocked) redirect("/login");
 
   const holdings = await prisma.holding.findMany({ where: { userId } });
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);

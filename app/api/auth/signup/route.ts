@@ -15,14 +15,29 @@ export async function POST(req: NextRequest) {
   }
 
   const { hash, salt } = await hashNewPassword(password);
+
+  // The very first person to ever sign up becomes the admin, auto-approved.
+  // Everyone after that needs the admin to approve them before logging in.
+  const userCount = await prisma.user.count();
+  const isFirstUser = userCount === 0;
+
   const user = await prisma.user.create({
-    data: { name, email: normalizedEmail, passwordHash: hash, passwordSalt: salt },
+    data: {
+      name,
+      email: normalizedEmail,
+      passwordHash: hash,
+      passwordSalt: salt,
+      role: isFirstUser ? "admin" : "user",
+      approved: isFirstUser,
+    },
   });
 
-  // Give the new user their own Settings row right away so every page that
-  // expects one to exist doesn't have to special-case a brand new account.
   await prisma.settings.create({ data: { userId: user.id } });
 
-  await setSessionCookie(user.id);
-  return NextResponse.json({ ok: true });
+  if (isFirstUser) {
+    await setSessionCookie(user.id);
+    return NextResponse.json({ ok: true, status: "active" });
+  }
+
+  return NextResponse.json({ ok: true, status: "pending" });
 }
