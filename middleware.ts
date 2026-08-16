@@ -3,14 +3,17 @@ import { SESSION_COOKIE_NAME } from "./lib/auth";
 
 // Same Web Crypto approach as lib/auth.ts — required here since middleware
 // always runs on Vercel's Edge runtime, which doesn't support Node's crypto.
-async function expectedToken(): Promise<string> {
+async function hashPassword(password: string): Promise<string> {
   const pepper = process.env.AUTH_SECRET || "change-me";
-  const password = process.env.APP_PASSWORD || "";
   const data = new TextEncoder().encode(password + pepper);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function validPasswords(): string[] {
+  return [process.env.APP_PASSWORD || "", process.env.APP_PASSWORD_2 || ""].filter(Boolean);
 }
 
 export async function middleware(req: NextRequest) {
@@ -25,8 +28,14 @@ export async function middleware(req: NextRequest) {
   }
 
   const cookie = req.cookies.get(SESSION_COOKIE_NAME);
-  const expected = await expectedToken();
-  if (!cookie || cookie.value !== expected) {
+  let ok = false;
+  if (cookie) {
+    for (const pw of validPasswords()) {
+      if (cookie.value === (await hashPassword(pw))) { ok = true; break; }
+    }
+  }
+
+  if (!ok) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }

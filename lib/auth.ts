@@ -5,9 +5,8 @@ const COOKIE_NAME = "finance_session";
 // Uses the Web Crypto API (globalThis.crypto) instead of Node's "crypto"
 // module — this works in both the normal Node runtime AND Vercel's Edge
 // runtime (which middleware.ts runs on and does NOT support Node's crypto).
-async function expectedToken(): Promise<string> {
+async function hashPassword(password: string): Promise<string> {
   const pepper = process.env.AUTH_SECRET || "change-me";
-  const password = process.env.APP_PASSWORD || "";
   const data = new TextEncoder().encode(password + pepper);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
@@ -15,12 +14,19 @@ async function expectedToken(): Promise<string> {
     .join("");
 }
 
-export function checkPassword(input: string): boolean {
-  return input === (process.env.APP_PASSWORD || "");
+// Supports a second shared password (APP_PASSWORD_2) for family/shared
+// access — e.g. a spouse who logs in with a different password but sees
+// the same data. Leave APP_PASSWORD_2 unset to disable this.
+function validPasswords(): string[] {
+  return [process.env.APP_PASSWORD || "", process.env.APP_PASSWORD_2 || ""].filter(Boolean);
 }
 
-export async function setSessionCookie() {
-  cookies().set(COOKIE_NAME, await expectedToken(), {
+export function checkPassword(input: string): boolean {
+  return validPasswords().includes(input);
+}
+
+export async function setSessionCookie(matchedPassword: string) {
+  cookies().set(COOKIE_NAME, await hashPassword(matchedPassword), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -36,8 +42,12 @@ export function clearSessionCookie() {
 export async function isAuthenticated(): Promise<boolean> {
   const cookie = cookies().get(COOKIE_NAME);
   if (!cookie) return false;
-  return cookie.value === (await expectedToken());
+  for (const pw of validPasswords()) {
+    if (cookie.value === (await hashPassword(pw))) return true;
+  }
+  return false;
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;
-export const getExpectedToken = expectedToken;
+export const getHashPassword = hashPassword;
+export const getValidPasswords = validPasswords;
