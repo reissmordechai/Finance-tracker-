@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
@@ -7,6 +8,9 @@ export default function GoalsPage() {
   const [target, setTarget] = useState("");
   const [fundingId, setFundingId] = useState<string | null>(null);
   const [fundAmount, setFundAmount] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const load = () => fetch("/api/goals").then((r) => r.json()).then(setGoals);
   useEffect(() => { load(); }, []);
@@ -39,6 +43,21 @@ export default function GoalsPage() {
     load();
   };
 
+  const startEdit = (g: any) => {
+    setEditingId(g.id);
+    setEditTarget(String(g.targetAmount));
+    setEditDate(g.targetDate ? g.targetDate.slice(0, 10) : "");
+  };
+  const saveEdit = async (id: string) => {
+    await fetch(`/api/goals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetAmount: parseFloat(editTarget) || 0, targetDate: editDate || null }),
+    });
+    setEditingId(null);
+    load();
+  };
+
   return (
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Goals</h1>
@@ -54,7 +73,6 @@ export default function GoalsPage() {
           const pct = Math.min(100, (g.savedAmount / g.targetAmount) * 100);
           const reached = g.savedAmount >= g.targetAmount;
 
-          // Projection: average contribution per day since the first one, projected forward
           const contributions = g.contributions || [];
           let projectionText = "";
           if (!reached && contributions.length >= 2) {
@@ -73,20 +91,32 @@ export default function GoalsPage() {
             <div className="card" key={g.id}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600 }}>{g.name} {reached && "🎉"}</span>
-                <button onClick={() => remove(g.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                <ConfirmDeleteButton onConfirm={() => remove(g.id)} />
               </div>
               <div className="num" style={{ marginTop: 6, fontSize: 13 }}>${g.savedAmount.toFixed(2)} of ${g.targetAmount.toFixed(2)}</div>
               <div style={{ height: 8, background: "#EFEADC", borderRadius: 4, overflow: "hidden", marginTop: 4 }}>
                 <div style={{ width: `${pct}%`, height: "100%", background: reached ? "#2F6B4F" : "#B8863E" }} />
               </div>
               {projectionText && <div style={{ fontSize: 11.5, color: "#B0A88E", marginTop: 8 }}>{projectionText}</div>}
-              <button className="btn-outline" style={{ marginTop: 10 }} onClick={() => setFundingId(fundingId === g.id ? null : g.id)}>
-                {fundingId === g.id ? "Cancel" : "Add funds"}
-              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn-outline" onClick={() => setFundingId(fundingId === g.id ? null : g.id)}>
+                  {fundingId === g.id ? "Cancel" : "Add funds"}
+                </button>
+                <button className="btn-outline" onClick={() => editingId === g.id ? setEditingId(null) : startEdit(g)}>
+                  {editingId === g.id ? "Cancel" : "Edit target"}
+                </button>
+              </div>
               {fundingId === g.id && (
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                   <input type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
                   <button className="btn" onClick={() => addFunds(g.id)}>Add</button>
+                </div>
+              )}
+              {editingId === g.id && (
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Target amount" style={{ width: 130 }} />
+                  <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} style={{ width: 150 }} />
+                  <button className="btn" onClick={() => saveEdit(g.id)}>Save</button>
                 </div>
               )}
             </div>

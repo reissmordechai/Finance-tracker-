@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 export default function ShoppingPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -72,7 +73,7 @@ export default function ShoppingPage() {
                 <div>{item.name}{item.category && <span className="pill" style={{ marginLeft: 6 }}>{item.category}</span>}</div>
                 {item.note && <div style={{ fontSize: 11, color: "#8A8370" }}>{item.note}</div>}
               </div>
-              <button onClick={() => remove(item.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+              <ConfirmDeleteButton onConfirm={() => remove(item.id)} />
             </div>
           ))
         )}
@@ -85,7 +86,7 @@ export default function ShoppingPage() {
             <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderTop: "1px solid #EFEADC" }}>
               <input type="checkbox" checked={true} onChange={() => toggle(item)} style={{ width: "auto" }} />
               <div style={{ flex: 1, textDecoration: "line-through" }}>{item.name}</div>
-              <button onClick={() => remove(item.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+              <ConfirmDeleteButton onConfirm={() => remove(item.id)} />
             </div>
           ))}
         </div>

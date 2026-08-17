@@ -1,16 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [label, setLabel] = useState("");
   const [rate, setRate] = useState("");
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editRate, setEditRate] = useState("");
 
   const [accounts, setAccounts] = useState<any[]>([]);
   const [acctTab, setAcctTab] = useState("expense");
   const [newAcctName, setNewAcctName] = useState("");
   const [newAcctParent, setNewAcctParent] = useState("");
+  const [editingAcctId, setEditingAcctId] = useState<string | null>(null);
+  const [editAcctName, setEditAcctName] = useState("");
 
   const [general, setGeneral] = useState<any>(null);
   const [currency, setCurrency] = useState("$");
@@ -52,6 +58,18 @@ export default function SettingsPage() {
     await fetch(`/api/categories/${id}`, { method: "DELETE" });
     loadAccounts();
   };
+  const startEditAccount = (a: any) => { setEditingAcctId(a.id); setEditAcctName(a.name); };
+  const saveAccountEdit = async (id: string) => {
+    const trimmed = editAcctName.trim();
+    if (!trimmed) return;
+    await fetch(`/api/categories/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setEditingAcctId(null);
+    loadAccounts();
+  };
 
   const addProfile = async () => {
     if (!label.trim() || !rate) return;
@@ -66,6 +84,16 @@ export default function SettingsPage() {
 
   const removeProfile = async (id: string) => {
     await fetch(`/api/settings/taxprofiles/${id}`, { method: "DELETE" });
+    load();
+  };
+  const startEditProfile = (p: any) => { setEditingProfileId(p.id); setEditLabel(p.label); setEditRate(String(p.rate)); };
+  const saveProfileEdit = async (id: string) => {
+    await fetch(`/api/settings/taxprofiles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: editLabel, rate: parseFloat(editRate) || 0 }),
+    });
+    setEditingProfileId(null);
     load();
   };
 
@@ -122,18 +150,34 @@ export default function SettingsPage() {
             return (
               <div key={parent.id} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13, fontWeight: 600 }}>
-                    {parent.name}
-                    <button onClick={() => removeAccount(parent.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
-                  </span>
+                  {editingAcctId === parent.id ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input autoFocus value={editAcctName} onChange={(e) => setEditAcctName(e.target.value)} style={{ width: 140 }} onKeyDown={(e) => e.key === "Enter" && saveAccountEdit(parent.id)} />
+                      <button className="btn" onClick={() => saveAccountEdit(parent.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                      <button className="btn-outline" onClick={() => setEditingAcctId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
+                    </span>
+                  ) : (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13, fontWeight: 600 }}>
+                      <button onClick={() => startEditAccount(parent)} style={{ border: "none", background: "none", padding: 0, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{parent.name}</button>
+                      <ConfirmDeleteButton onConfirm={() => removeAccount(parent.id)} />
+                    </span>
+                  )}
                 </div>
                 {children.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, marginLeft: 20 }}>
                     {children.map((c) => (
-                      <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #E4DEC9", borderRadius: 16, padding: "4px 8px 4px 12px", fontSize: 12.5 }}>
-                        {c.name}
-                        <button onClick={() => removeAccount(c.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
-                      </span>
+                      editingAcctId === c.id ? (
+                        <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <input autoFocus value={editAcctName} onChange={(e) => setEditAcctName(e.target.value)} style={{ width: 130 }} onKeyDown={(e) => e.key === "Enter" && saveAccountEdit(c.id)} />
+                          <button className="btn" onClick={() => saveAccountEdit(c.id)} style={{ padding: "4px 8px", fontSize: 11 }}>Save</button>
+                          <button className="btn-outline" onClick={() => setEditingAcctId(null)} style={{ padding: "4px 8px", fontSize: 11 }}>Cancel</button>
+                        </span>
+                      ) : (
+                        <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #E4DEC9", borderRadius: 16, padding: "4px 8px 4px 12px", fontSize: 12.5 }}>
+                          <button onClick={() => startEditAccount(c)} style={{ border: "none", background: "none", padding: 0, fontSize: 12.5, cursor: "pointer" }}>{c.name}</button>
+                          <ConfirmDeleteButton onConfirm={() => removeAccount(c.id)} />
+                        </span>
+                      )
                     ))}
                   </div>
                 )}
@@ -167,13 +211,22 @@ export default function SettingsPage() {
           <button className="btn" onClick={addProfile}>Add</button>
         </div>
         {profiles.map((p) => (
-          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
-            <span>{p.label}</span>
-            <span>
-              <span className="num">{p.rate}%</span>
-              <button onClick={() => removeProfile(p.id)} style={{ border: "none", background: "none", color: "#B0A88E", marginLeft: 10 }}>✕</button>
-            </span>
-          </div>
+          editingProfileId === p.id ? (
+            <div key={p.id} style={{ display: "flex", gap: 8, padding: "6px 0", borderTop: "1px solid #EFEADC", alignItems: "center", flexWrap: "wrap" }}>
+              <input autoFocus value={editLabel} onChange={(e) => setEditLabel(e.target.value)} style={{ flex: 1, minWidth: 100 }} />
+              <input type="number" step="0.001" value={editRate} onChange={(e) => setEditRate(e.target.value)} style={{ width: 90 }} />
+              <button className="btn" onClick={() => saveProfileEdit(p.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+              <button className="btn-outline" onClick={() => setEditingProfileId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
+            </div>
+          ) : (
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
+              <button onClick={() => startEditProfile(p)} style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}>{p.label}</button>
+              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span className="num">{p.rate}%</span>
+                <ConfirmDeleteButton onConfirm={() => removeProfile(p.id)} />
+              </span>
+            </div>
+          )
         ))}
         {profiles.length === 0 && <div style={{ color: "#8A8370" }}>No tax profiles yet.</div>}
       </div>

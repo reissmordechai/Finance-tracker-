@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ConfirmDeleteButton from "../../components/ConfirmDeleteButton";
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -107,7 +108,7 @@ export default function AccountDetailPage() {
             <div className="card" key={h.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ fontWeight: 600 }}>{h.name} {h.symbol && <span style={{ fontSize: 11, color: "#8A8370" }}>({h.symbol})</span>}{h.currencyCode && h.currencyCode !== baseCurrency && <span className="pill" style={{ marginLeft: 6 }}>{h.currencyCode}</span>}</div>
-                <button onClick={() => remove(h.id)} style={{ border: "none", background: "none", color: "#B0A88E", cursor: "pointer" }}>✕</button>
+                <ConfirmDeleteButton onConfirm={() => remove(h.id)} />
               </div>
               <div style={{ display: "flex", gap: 20, marginTop: 8, flexWrap: "wrap" }}>
                 <div>

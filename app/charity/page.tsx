@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 export default function CharityPage() {
   const [entries, setEntries] = useState<any[]>([]);
@@ -62,6 +63,20 @@ export default function CharityPage() {
 
   const remove = async (id: string) => {
     await fetch(`/api/charity/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const startEdit = (e: any) => { setEditingId(e.id); setEditAmount(String(e.amount)); setEditNote(e.note || ""); };
+  const saveEdit = async (id: string) => {
+    await fetch(`/api/charity/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: parseFloat(editAmount) || 0, note: editNote || null }),
+    });
+    setEditingId(null);
     load();
   };
 
@@ -134,18 +149,27 @@ export default function CharityPage() {
       <div className="card" style={{ padding: 0 }}>
         <div style={{ fontWeight: 600, padding: "14px 14px 0" }}>History</div>
         {entries.map((e) => (
-          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderTop: "1px solid #EFEADC" }}>
-            <div>
-              <div>{e.type === "owed" ? "Set aside" : `Given${e.kind && e.kind !== "cash" ? ` (${e.kind === "time" ? "time/effort" : "in-kind"})` : ""}`}{e.note ? ` · ${e.note}` : ""}</div>
-              <div style={{ fontSize: 11, color: "#8A8370" }}>{e.date.slice(0, 10)}</div>
+          editingId === e.id ? (
+            <div key={e.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", borderTop: "1px solid #EFEADC", flexWrap: "wrap" }}>
+              <input type="number" step="0.01" autoFocus value={editAmount} onChange={(ev) => setEditAmount(ev.target.value)} style={{ width: 110 }} />
+              <input value={editNote} onChange={(ev) => setEditNote(ev.target.value)} placeholder="Note" style={{ flex: 1, minWidth: 120 }} />
+              <button className="btn" onClick={() => saveEdit(e.id)} style={{ padding: "6px 12px", fontSize: 12 }}>Save</button>
+              <button className="btn-outline" onClick={() => setEditingId(null)} style={{ padding: "6px 12px", fontSize: 12 }}>Cancel</button>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span className="num" style={{ color: e.type === "owed" ? "#9C4221" : "#2F6B4F", fontWeight: 600 }}>
-                {e.type === "owed" ? "+" : "-"}${e.amount.toFixed(2)}
-              </span>
-              <button onClick={() => remove(e.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+          ) : (
+            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderTop: "1px solid #EFEADC" }}>
+              <button onClick={() => startEdit(e)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
+                <div>{e.type === "owed" ? "Set aside" : `Given${e.kind && e.kind !== "cash" ? ` (${e.kind === "time" ? "time/effort" : "in-kind"})` : ""}`}{e.note ? ` · ${e.note}` : ""}</div>
+                <div style={{ fontSize: 11, color: "#8A8370" }}>{e.date.slice(0, 10)}</div>
+              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span className="num" style={{ color: e.type === "owed" ? "#9C4221" : "#2F6B4F", fontWeight: 600 }}>
+                  {e.type === "owed" ? "+" : "-"}${e.amount.toFixed(2)}
+                </span>
+                <ConfirmDeleteButton onConfirm={() => remove(e.id)} />
+              </div>
             </div>
-          </div>
+          )
         ))}
         {entries.length === 0 && <div style={{ padding: 14, color: "#8A8370" }}>No entries yet.</div>}
       </div>

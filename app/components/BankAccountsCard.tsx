@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "./ConfirmDeleteButton";
 
 // Estimated current balance using daily-compounded interest since the
 // balance was last manually confirmed. This is an estimate to fill the gap
@@ -193,7 +194,7 @@ export default function BankAccountsCard() {
                         <span className="num">{a.balance.toFixed(2)} {a.currencyCode || "USD"}</span>
                       </button>
                     )}
-                    <button onClick={() => remove(a.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                    <ConfirmDeleteButton onConfirm={() => remove(a.id)} />
                   </div>
                 </div>
                 {showEstimate && (

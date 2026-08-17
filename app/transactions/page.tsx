@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { parseCsv } from "@/lib/csv";
 import { useVoiceInput } from "../components/useVoiceInput";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -452,7 +453,7 @@ export default function TransactionsPage() {
               <span className="num" style={{ color: t.type === "income" ? "#2F6B4F" : "#9C4221", fontWeight: 600 }}>
                 {t.type === "income" ? "+" : "-"}${t.amount.toFixed(2)}
               </span>
-              <button onClick={() => remove(t.id)} style={{ border: "none", background: "none", color: "#B0A88E", cursor: "pointer" }}>✕</button>
+              <ConfirmDeleteButton onConfirm={() => remove(t.id)} />
             </div>
           </div>
         ))}

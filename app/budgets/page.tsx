@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 function monthKey(offset: number) {
   const d = new Date();
@@ -13,6 +14,8 @@ export default function BudgetsPage() {
   const [category, setCategory] = useState("");
   const [limit, setLimit] = useState("");
   const [rollover, setRollover] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLimit, setEditLimit] = useState("");
 
   const load = () => {
     fetch("/api/budgets").then((r) => r.json()).then(setBudgets);
@@ -37,6 +40,17 @@ export default function BudgetsPage() {
 
   const remove = async (id: string) => {
     await fetch(`/api/budgets/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const startEdit = (b: any) => { setEditingId(b.id); setEditLimit(String(b.limit)); };
+  const saveEdit = async (b: any) => {
+    await fetch("/api/budgets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: b.category, limit: parseFloat(editLimit) || 0, rollover: b.rollover }),
+    });
+    setEditingId(null);
     load();
   };
 
@@ -72,12 +86,22 @@ export default function BudgetsPage() {
           const over = spent > effectiveLimit;
           return (
             <div className="card" key={b.id}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
                 <span style={{ fontWeight: 600 }}>{b.category}{b.rollover && <span className="pill" style={{ marginLeft: 6 }}>rollover</span>}</span>
-                <div>
-                  <span className="num" style={{ color: over ? "#9C4221" : "#5B7B7A" }}>${spent.toFixed(2)} / ${effectiveLimit.toFixed(2)}</span>
-                  <button onClick={() => remove(b.id)} style={{ border: "none", background: "none", color: "#B0A88E", marginLeft: 10 }}>✕</button>
-                </div>
+                {editingId === b.id ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input type="number" autoFocus value={editLimit} onChange={(e) => setEditLimit(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(b)} />
+                    <button className="btn" onClick={() => saveEdit(b)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                    <button className="btn-outline" onClick={() => setEditingId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div>
+                    <button onClick={() => startEdit(b)} style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}>
+                      <span className="num" style={{ color: over ? "#9C4221" : "#5B7B7A" }}>${spent.toFixed(2)} / ${effectiveLimit.toFixed(2)}</span>
+                    </button>
+                    <span style={{ marginLeft: 10 }}><ConfirmDeleteButton onConfirm={() => remove(b.id)} /></span>
+                  </div>
+                )}
               </div>
               <div style={{ height: 8, background: "#EFEADC", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{ width: `${pct}%`, height: "100%", background: over ? "#9C4221" : "#B8863E" }} />

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 function countRemaining(startDate: string, endDate: string | null, frequency: string, lastGenerated: string | null): number | null {
   if (!endDate) return null;
@@ -167,7 +168,7 @@ export default function RecurringPage() {
                     {r.type === "income" ? "+" : "-"}${r.amount.toFixed(2)}
                   </span>
                   <button className="btn-outline" onClick={() => togglePause(r.id, r.paused)}>{r.paused ? "Resume" : "Pause"}</button>
-                  <button onClick={() => remove(r.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                  <ConfirmDeleteButton onConfirm={() => remove(r.id)} />
                 </div>
               </div>
 

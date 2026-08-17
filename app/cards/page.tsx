@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 
 function payoffMonths(balance: number, apr: number, payment: number): { months: number; totalInterest: number } | null {
   const monthlyRate = apr / 100 / 12;
@@ -29,6 +30,11 @@ export default function CardsPage() {
   const [plannerId, setPlannerId] = useState<string | null>(null);
   const [plannerPayment, setPlannerPayment] = useState("");
   const [plannerApr, setPlannerApr] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editLimit, setEditLimit] = useState("");
+  const [editDueDay, setEditDueDay] = useState("");
+  const [editApr, setEditApr] = useState("");
 
   const load = () => {
     fetch("/api/cards").then((r) => r.json()).then(setCards);
@@ -70,6 +76,28 @@ export default function CardsPage() {
     setPlannerPayment("");
   };
 
+  const startEdit = (c: any) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditLimit(String(c.limit));
+    setEditDueDay(c.dueDay != null ? String(c.dueDay) : "");
+    setEditApr(c.apr != null ? String(c.apr) : "");
+  };
+  const saveEdit = async (id: string) => {
+    await fetch(`/api/cards/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        limit: parseFloat(editLimit) || 0,
+        dueDay: editDueDay ? parseInt(editDueDay) : null,
+        apr: editApr ? parseFloat(editApr) : null,
+      }),
+    });
+    setEditingId(null);
+    load();
+  };
+
   return (
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Cards</h1>
@@ -91,14 +119,24 @@ export default function CardsPage() {
             <div className="card" key={c.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ fontWeight: 600 }}>{c.name} {c.amountDue === 0 && <span style={{ fontSize: 12, color: "#2F6B4F" }}>🎉 Paid off!</span>}</div>
-                <button onClick={() => remove(c.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                <ConfirmDeleteButton onConfirm={() => remove(c.id)} />
               </div>
-              <div style={{ display: "flex", gap: 20, marginTop: 8, flexWrap: "wrap" }}>
-                <div><div style={{ fontSize: 11, color: "#8A8370" }}>Limit</div><div className="num">${c.limit.toFixed(2)}</div></div>
-                <div><div style={{ fontSize: 11, color: "#8A8370" }}>Due day</div><div className="num">{c.dueDay || "—"}</div></div>
-                <div><div style={{ fontSize: 11, color: "#8A8370" }}>Amount due</div><div className="num" style={{ fontWeight: 700, color: c.amountDue > 0 ? "#9C4221" : "#0F3D2E" }}>${c.amountDue.toFixed(2)}</div></div>
-                {c.apr != null && <div><div style={{ fontSize: 11, color: "#8A8370" }}>APR</div><div className="num">{c.apr}%</div></div>}
-              </div>
+              {editingId === c.id ? (
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Card name" style={{ flex: 2, minWidth: 140 }} />
+                  <input type="number" value={editLimit} onChange={(e) => setEditLimit(e.target.value)} placeholder="Limit" style={{ width: 100 }} />
+                  <input type="number" value={editDueDay} onChange={(e) => setEditDueDay(e.target.value)} placeholder="Due day" style={{ width: 90 }} />
+                  <input type="number" step="0.1" value={editApr} onChange={(e) => setEditApr(e.target.value)} placeholder="APR %" style={{ width: 100 }} />
+                  <button className="btn" onClick={() => saveEdit(c.id)}>Save</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 20, marginTop: 8, flexWrap: "wrap" }}>
+                  <div><div style={{ fontSize: 11, color: "#8A8370" }}>Limit</div><div className="num">${c.limit.toFixed(2)}</div></div>
+                  <div><div style={{ fontSize: 11, color: "#8A8370" }}>Due day</div><div className="num">{c.dueDay || "—"}</div></div>
+                  <div><div style={{ fontSize: 11, color: "#8A8370" }}>Amount due</div><div className="num" style={{ fontWeight: 700, color: c.amountDue > 0 ? "#9C4221" : "#0F3D2E" }}>${c.amountDue.toFixed(2)}</div></div>
+                  {c.apr != null && <div><div style={{ fontSize: 11, color: "#8A8370" }}>APR</div><div className="num">{c.apr}%</div></div>}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <button className="btn-outline" onClick={() => setPayingId(payingId === c.id ? null : c.id)}>
                   {payingId === c.id ? "Cancel" : "Pay card"}
@@ -108,6 +146,9 @@ export default function CardsPage() {
                     {plannerId === c.id ? "Cancel" : "Payoff planner"}
                   </button>
                 )}
+                <button className="btn-outline" onClick={() => editingId === c.id ? setEditingId(null) : startEdit(c)}>
+                  {editingId === c.id ? "Cancel edit" : "Edit"}
+                </button>
               </div>
               {payingId === c.id && (
                 <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
