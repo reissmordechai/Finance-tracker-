@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   await prisma.recurring.updateMany({
     where: { id: params.id, userId: auth.userId },
-    data: { paused: body.paused, amount: body.amount },
+    data: { paused: body.paused, amount: body.amount, currencyCode: body.currencyCode },
   });
   const rule = await prisma.recurring.findFirst({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json(rule);

@@ -76,6 +76,9 @@ export default function TransactionsPage() {
   const [editPaymentOther, setEditPaymentOther] = useState("");
   const [showItems, setShowItems] = useState(false);
   const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string }[]>([]);
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splitCategory2, setSplitCategory2] = useState("");
+  const [splitAmount2, setSplitAmount2] = useState("");
   const [expandedItemsId, setExpandedItemsId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [payCardId, setPayCardId] = useState("");
@@ -189,34 +192,55 @@ export default function TransactionsPage() {
     const amt = parseFloat(amount);
     if (!amt || !category) return;
 
-    let finalAmount = amt;
+    const splitAmt2 = splitEnabled ? parseFloat(splitAmount2) : 0;
+    if (splitEnabled && (!splitCategory2 || !splitAmt2 || splitAmt2 >= amt)) return;
+
+    let rate = 1;
     let currencyCode: string | null = null;
-    let originalAmount: number | null = null;
     if (entryCurrency !== baseCurrency) {
       setConverting(true);
-      const { rate } = await fetch(`/api/currency?from=${entryCurrency}&to=${baseCurrency}`).then((r) => r.json());
+      const res = await fetch(`/api/currency?from=${entryCurrency}&to=${baseCurrency}`).then((r) => r.json());
       setConverting(false);
-      if (rate) {
-        finalAmount = Math.round(amt * rate * 100) / 100;
-        currencyCode = entryCurrency;
-        originalAmount = amt;
-      }
+      if (res.rate) { rate = res.rate; currencyCode = entryCurrency; }
     }
 
+    const amt1 = splitEnabled ? amt - splitAmt2 : amt;
+    const finalAmount1 = Math.round(amt1 * rate * 100) / 100;
+    const finalAmount2 = splitEnabled ? Math.round(splitAmt2 * rate * 100) / 100 : 0;
+
     const validItems = items.filter((it) => it.name.trim() && parseFloat(it.qty) > 0);
+    const splitGroupId = splitEnabled ? crypto.randomUUID() : null;
 
     const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type, category, amount: finalAmount, date, tags: tags || null, vendor: vendor || null, receiptImage, currencyCode, originalAmount,
+        type, category, amount: finalAmount1, date, tags: tags || null, vendor: vendor || null, receiptImage,
+        currencyCode, originalAmount: currencyCode ? amt1 : null,
         paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
         bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
         checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
         paymentOther: paymentMethod === "other" ? paymentOther || null : null,
         items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0 })),
+        splitGroupId, splitIndex: splitGroupId ? 0 : null, splitCount: splitGroupId ? 2 : null,
       }),
     }).then((r) => r.json());
+
+    if (splitGroupId) {
+      await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type, category: splitCategory2, amount: finalAmount2, date, tags: tags || null, vendor: vendor || null,
+          currencyCode, originalAmount: currencyCode ? splitAmt2 : null,
+          paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
+          bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
+          checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
+          paymentOther: paymentMethod === "other" ? paymentOther || null : null,
+          splitGroupId, splitIndex: 1, splitCount: 2,
+        }),
+      });
+    }
 
     if (type === "income" && charityEligible && charityAmount > 0) {
       await fetch("/api/charity", {
@@ -226,7 +250,7 @@ export default function TransactionsPage() {
       });
     }
     if (type === "expense" && isCharityPayment) {
-      const giveAmt = parseFloat(charityGiveAmount) || finalAmount;
+      const giveAmt = parseFloat(charityGiveAmount) || finalAmount1;
       await fetch("/api/charity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -235,6 +259,7 @@ export default function TransactionsPage() {
     }
 
     setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
+    setSplitEnabled(false); setSplitCategory2(""); setSplitAmount2("");
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     setItems([]); setShowItems(false);
     setPaymentMethod("cash"); setPayCardId(""); setPayBankAccountId(""); setPayCheckNumber(""); setPaymentOther("");
@@ -428,6 +453,9 @@ export default function TransactionsPage() {
         <button type="button" className={showItems ? "btn" : "btn-outline"} onClick={() => setShowItems((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
           {showItems ? "Hide items" : "+ Itemize"}
         </button>
+        <button type="button" className={splitEnabled ? "btn" : "btn-outline"} onClick={() => setSplitEnabled((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
+          {splitEnabled ? "Cancel split" : "Split into 2 accounts"}
+        </button>
         <div style={{ display: "flex", gap: 4 }}>
           {["Joint", "Personal"].map((label) => {
             const has = tags.split(",").map((t) => t.trim().toLowerCase()).includes(label.toLowerCase());
@@ -511,6 +539,31 @@ export default function TransactionsPage() {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {splitEnabled && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Split this transaction across two accounts</div>
+          <div style={{ fontSize: 12, color: "#8A8370", marginBottom: 8 }}>
+            The main amount above (${amount || "0.00"}) will be split — enter how much of it goes to a second account below; the rest stays under "{category || "the first account"}".
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <select value={splitCategory2} onChange={(e) => setSplitCategory2(e.target.value)} style={{ width: 160 }}>
+              <option value="">Second account…</option>
+              {catsForType.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+            <input type="number" step="0.01" value={splitAmount2} onChange={(e) => setSplitAmount2(e.target.value)} placeholder="Amount for second account" style={{ width: 180 }} />
+          </div>
+          {splitAmount2 && amount && (
+            <div style={{ fontSize: 12, color: "#5B5540", marginTop: 8 }}>
+              {parseFloat(splitAmount2) >= parseFloat(amount) ? (
+                <span style={{ color: "#9C4221" }}>This has to be less than the total amount.</span>
+              ) : (
+                <>"{category || "First account"}" gets <span className="num">${(parseFloat(amount) - parseFloat(splitAmount2)).toFixed(2)}</span>, "{splitCategory2 || "second account"}" gets <span className="num">${parseFloat(splitAmount2).toFixed(2)}</span></>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -640,7 +693,7 @@ export default function TransactionsPage() {
                 />
               )}
               <button onClick={() => startEditTxn(t)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
-                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
+                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}{t.splitGroupId && <span className="pill" style={{ marginLeft: 6 }}>split</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
                   {paymentLabel(t, cardsList, bankAccountsList) && (

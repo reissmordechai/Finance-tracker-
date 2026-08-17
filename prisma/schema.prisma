@@ -211,6 +211,7 @@ model Recurring {
   type          String
   category      String
   amount        Float
+  currencyCode  String?   // e.g. "EUR" — set only when this rule posts in a non-base currency
   frequency     String    // "weekly" | "monthly" | "yearly"
   startDate     DateTime
   endDate       DateTime?

@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       type: body.type,
       category: body.category,
       amount: body.amount,
+      currencyCode: body.currencyCode || null,
       frequency: body.frequency,
       startDate: new Date(body.startDate),
       endDate: body.endDate ? new Date(body.endDate) : null,

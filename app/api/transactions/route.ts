@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
       tags: body.tags || null,
       currencyCode: body.currencyCode || null,
       originalAmount: body.originalAmount ?? null,
+      splitGroupId: body.splitGroupId || null,
+      splitIndex: body.splitIndex ?? null,
+      splitCount: body.splitCount ?? null,
       items: body.items?.length
         ? { create: body.items.map((it: any) => ({ name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice })) }
         : undefined,

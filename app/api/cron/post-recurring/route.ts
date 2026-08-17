@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentPrice } from "@/lib/stockPrice";
+import { getCurrentPrice, getExchangeRate } from "@/lib/stockPrice";
 
 function addInterval(date: Date, freq: string): Date {
   const d = new Date(date.getTime());
@@ -23,11 +23,32 @@ export async function GET(req: NextRequest) {
   const today = new Date();
   const rules = await prisma.recurring.findMany({ where: { paused: false } });
   const results: any[] = [];
+  const baseCurrencyCache: Record<string, string> = {};
 
   for (const rule of rules) {
     let cursor = rule.lastGenerated ? addInterval(rule.lastGenerated, rule.frequency) : new Date(rule.startDate);
     let posted = 0;
     let guard = 0;
+
+    // Convert to the user's base currency at posting time, if this rule was set up in a different currency.
+    let postAmount = rule.amount;
+    let currencyCode: string | null = null;
+    let originalAmount: number | null = null;
+    if (rule.currencyCode) {
+      if (!(rule.userId in baseCurrencyCache)) {
+        const settings = await prisma.settings.findUnique({ where: { userId: rule.userId } });
+        baseCurrencyCache[rule.userId] = settings?.baseCurrencyCode || "USD";
+      }
+      const base = baseCurrencyCache[rule.userId];
+      if (rule.currencyCode !== base) {
+        const rate = await getExchangeRate(rule.currencyCode, base);
+        if (rate) {
+          postAmount = Math.round(rule.amount * rate * 100) / 100;
+          currencyCode = rule.currencyCode;
+          originalAmount = rule.amount;
+        }
+      }
+    }
 
     while (cursor <= today && (!rule.endDate || cursor <= rule.endDate) && guard < 500) {
       if (rule.postTo === "holding" && rule.holdingId) {
@@ -36,14 +57,14 @@ export async function GET(req: NextRequest) {
           let newShares = holding.shares;
           if (holding.symbol) {
             const price = await getCurrentPrice(holding.symbol);
-            if (price) newShares = holding.shares + rule.amount / price;
+            if (price) newShares = holding.shares + postAmount / price;
           }
-          await prisma.holdingEntry.create({ data: { holdingId: holding.id, date: cursor, amount: rule.amount } });
-          await prisma.holding.update({ where: { id: holding.id }, data: { currentValue: holding.currentValue + rule.amount, shares: newShares } });
+          await prisma.holdingEntry.create({ data: { holdingId: holding.id, date: cursor, amount: postAmount } });
+          await prisma.holding.update({ where: { id: holding.id }, data: { currentValue: holding.currentValue + postAmount, shares: newShares } });
         }
       } else if (rule.postTo === "charity") {
         await prisma.charityEntry.create({
-          data: { userId: rule.userId, date: cursor, type: "given", kind: "cash", amount: rule.amount, note: `Recurring gift: ${rule.category}` },
+          data: { userId: rule.userId, date: cursor, type: "given", kind: "cash", amount: postAmount, note: `Recurring gift: ${rule.category}` },
         });
       } else {
         await prisma.transaction.create({
@@ -52,7 +73,9 @@ export async function GET(req: NextRequest) {
             type: rule.type,
             date: cursor,
             category: rule.category,
-            amount: rule.amount,
+            amount: postAmount,
+            currencyCode,
+            originalAmount,
             note: rule.note || "",
             paymentMethod: rule.paymentMethod,
             cardId: rule.paymentMethod === "card" ? rule.cardId : null,

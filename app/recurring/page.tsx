@@ -34,12 +34,18 @@ export default function RecurringPage() {
   const [holdingId, setHoldingId] = useState("");
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewAmount, setReviewAmount] = useState("");
+  const [currencyCode, setCurrencyCode] = useState("USD");
+  const [baseCurrency, setBaseCurrency] = useState("USD");
 
   const load = () => fetch("/api/recurring").then((r) => r.json()).then(setRules);
   useEffect(() => {
     load();
     fetch("/api/holdings").then((r) => r.json()).then(setHoldings);
     fetch("/api/transactions").then((r) => r.json()).then(setTxns);
+    fetch("/api/settings/general").then((r) => r.json()).then((d) => {
+      setBaseCurrency(d.baseCurrencyCode || "USD");
+      setCurrencyCode(d.baseCurrencyCode || "USD");
+    });
   }, []);
 
   const lastTxnFor = (ruleId: string) => txns.filter((t) => t.recurringId === ruleId).sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -77,10 +83,10 @@ export default function RecurringPage() {
       body: JSON.stringify({
         type: postTo === "holding" || postTo === "charity" ? "expense" : type,
         category: postTo === "holding" ? (holdings.find((h) => h.id === holdingId)?.name || "Holding") : category,
-        amount: parseFloat(amount), frequency, startDate, endDate: endDate || null, postTo, holdingId: holdingId || null,
+        amount: parseFloat(amount), currencyCode: currencyCode !== baseCurrency ? currencyCode : null, frequency, startDate, endDate: endDate || null, postTo, holdingId: holdingId || null,
       }),
     });
-    setCategory(""); setAmount(""); setEndDate(""); setHoldingId("");
+    setCategory(""); setAmount(""); setEndDate(""); setHoldingId(""); setCurrencyCode(baseCurrency);
     load();
   };
 
@@ -129,6 +135,9 @@ export default function RecurringPage() {
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Label, e.g. Monthly gift" style={{ width: 180 }} />
         )}
         <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
+        <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)} style={{ width: 90 }}>
+          {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
         <select value={frequency} onChange={(e) => setFrequency(e.target.value)} style={{ width: 120 }}>
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
@@ -165,7 +174,7 @@ export default function RecurringPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="num" style={{ fontWeight: 700, color: r.type === "income" ? "#2F6B4F" : "#9C4221" }}>
-                    {r.type === "income" ? "+" : "-"}${r.amount.toFixed(2)}
+                    {r.type === "income" ? "+" : "-"}{r.amount.toFixed(2)} {r.currencyCode || baseCurrency}
                   </span>
                   <button className="btn-outline" onClick={() => togglePause(r.id, r.paused)}>{r.paused ? "Resume" : "Pause"}</button>
                   <ConfirmDeleteButton onConfirm={() => remove(r.id)} />
