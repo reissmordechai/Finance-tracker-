@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const existing = await prisma.category.findUnique({ where: { userId_name_type: { userId: auth.userId, name, type } } });
   if (existing) return NextResponse.json(existing);
-  const category = await prisma.category.create({ data: { userId: auth.userId, name, type } });
+  const category = await prisma.category.create({ data: { userId: auth.userId, name, type, parentId: body.parentId || null } });
   return NextResponse.json(category);
 }

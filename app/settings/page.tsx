@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [acctTab, setAcctTab] = useState("expense");
   const [newAcctName, setNewAcctName] = useState("");
+  const [newAcctParent, setNewAcctParent] = useState("");
 
   const [general, setGeneral] = useState<any>(null);
   const [currency, setCurrency] = useState("$");
@@ -42,9 +43,9 @@ export default function SettingsPage() {
     await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, type: acctTab }),
+      body: JSON.stringify({ name, type: acctTab, parentId: newAcctParent || null }),
     });
-    setNewAcctName("");
+    setNewAcctName(""); setNewAcctParent("");
     loadAccounts();
   };
   const removeAccount = async (id: string) => {
@@ -107,23 +108,47 @@ export default function SettingsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 10 }}>Accounts</div>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Accounts</div>
+        <div style={{ fontSize: 12.5, color: "#5B5540", marginBottom: 10 }}>Split any account into sub-accounts — e.g. "Utilities" into Electric, Gas, Water.</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {["expense", "income"].map((t) => (
-            <button key={t} className={acctTab === t ? "btn" : "btn-outline"} onClick={() => setAcctTab(t)} style={{ padding: "5px 14px", fontSize: 12, textTransform: "capitalize" }}>{t} accounts</button>
+            <button key={t} className={acctTab === t ? "btn" : "btn-outline"} onClick={() => { setAcctTab(t); setNewAcctParent(""); }} style={{ padding: "5px 14px", fontSize: 12, textTransform: "capitalize" }}>{t} accounts</button>
           ))}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          {accounts.filter((a) => a.type === acctTab).map((a) => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13 }}>
-              {a.name}
-              <button onClick={() => removeAccount(a.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
-            </div>
-          ))}
+
+        <div style={{ marginBottom: 12 }}>
+          {accounts.filter((a) => a.type === acctTab && !a.parentId).map((parent) => {
+            const children = accounts.filter((a) => a.parentId === parent.id);
+            return (
+              <div key={parent.id} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13, fontWeight: 600 }}>
+                    {parent.name}
+                    <button onClick={() => removeAccount(parent.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                  </span>
+                </div>
+                {children.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, marginLeft: 20 }}>
+                    {children.map((c) => (
+                      <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #E4DEC9", borderRadius: 16, padding: "4px 8px 4px 12px", fontSize: 12.5 }}>
+                        {c.name}
+                        <button onClick={() => removeAccount(c.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {accounts.filter((a) => a.type === acctTab).length === 0 && <div style={{ color: "#8A8370", fontSize: 13 }}>No {acctTab} accounts yet.</div>}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input value={newAcctName} onChange={(e) => setNewAcctName(e.target.value)} placeholder={`New ${acctTab} account, e.g. Groceries`} style={{ flex: 1, minWidth: 160 }} onKeyDown={(e) => e.key === "Enter" && addAccount()} />
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={newAcctName} onChange={(e) => setNewAcctName(e.target.value)} placeholder={newAcctParent ? "Sub-account name, e.g. Electric" : `New ${acctTab} account, e.g. Utilities`} style={{ flex: 1, minWidth: 160 }} onKeyDown={(e) => e.key === "Enter" && addAccount()} />
+          <select value={newAcctParent} onChange={(e) => setNewAcctParent(e.target.value)} style={{ width: 170 }}>
+            <option value="">Top-level account</option>
+            {accounts.filter((a) => a.type === acctTab && !a.parentId).map((p) => <option key={p.id} value={p.id}>Sub-account of {p.name}</option>)}
+          </select>
           <button className="btn" onClick={addAccount}>Add</button>
         </div>
       </div>

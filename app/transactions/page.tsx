@@ -291,7 +291,17 @@ export default function TransactionsPage() {
           ) : (
             <select value={category} onChange={(e) => { if (e.target.value === "__new__") setAddingNewCat(true); else setCategory(e.target.value); }} style={{ width: 160 }}>
               {catsForType.length === 0 && <option value="">No accounts yet</option>}
-              {catsForType.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              {catsForType.filter((c) => !c.parentId).map((parent) => {
+                const children = catsForType.filter((c) => c.parentId === parent.id);
+                return children.length > 0 ? (
+                  <optgroup key={parent.id} label={parent.name}>
+                    <option value={parent.name}>{parent.name} (general)</option>
+                    {children.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <option key={parent.id} value={parent.name}>{parent.name}</option>
+                );
+              })}
               <option value="__new__">+ New account…</option>
             </select>
           )}
