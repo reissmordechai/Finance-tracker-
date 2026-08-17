@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<any[]>([]);
@@ -54,7 +55,7 @@ export default function VendorsPage() {
           editingId === v.id ? (
             <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} style={{ width: 140 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(v.id)} />
-              <button className="btn" onClick={() => saveEdit(v.id)} style={{ padding: "6px 10px", fontSize: 12 }}>Save</button>
+              <ConfirmSaveButton onConfirm={() => saveEdit(v.id)} />
               <button className="btn-outline" onClick={() => setEditingId(null)} style={{ padding: "6px 10px", fontSize: 12 }}>Cancel</button>
             </div>
           ) : (

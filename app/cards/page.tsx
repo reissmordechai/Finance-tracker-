@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 function payoffMonths(balance: number, apr: number, payment: number): { months: number; totalInterest: number } | null {
   const monthlyRate = apr / 100 / 12;
@@ -23,6 +24,7 @@ export default function CardsPage() {
   const [name, setName] = useState("");
   const [limit, setLimit] = useState("");
   const [dueDay, setDueDay] = useState("");
+  const [statementDay, setStatementDay] = useState("");
   const [apr, setApr] = useState("");
   const [payingId, setPayingId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -34,6 +36,7 @@ export default function CardsPage() {
   const [editName, setEditName] = useState("");
   const [editLimit, setEditLimit] = useState("");
   const [editDueDay, setEditDueDay] = useState("");
+  const [editStatementDay, setEditStatementDay] = useState("");
   const [editApr, setEditApr] = useState("");
 
   const load = () => {
@@ -47,9 +50,9 @@ export default function CardsPage() {
     await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, limit: parseFloat(limit) || 0, dueDay: parseInt(dueDay) || null, apr: apr ? parseFloat(apr) : null }),
+      body: JSON.stringify({ name, limit: parseFloat(limit) || 0, dueDay: parseInt(dueDay) || null, statementDay: parseInt(statementDay) || null, apr: apr ? parseFloat(apr) : null }),
     });
-    setName(""); setLimit(""); setDueDay(""); setApr("");
+    setName(""); setLimit(""); setDueDay(""); setStatementDay(""); setApr("");
     load();
   };
 
@@ -81,6 +84,7 @@ export default function CardsPage() {
     setEditName(c.name);
     setEditLimit(String(c.limit));
     setEditDueDay(c.dueDay != null ? String(c.dueDay) : "");
+    setEditStatementDay(c.statementDay != null ? String(c.statementDay) : "");
     setEditApr(c.apr != null ? String(c.apr) : "");
   };
   const saveEdit = async (id: string) => {
@@ -91,6 +95,7 @@ export default function CardsPage() {
         name: editName,
         limit: parseFloat(editLimit) || 0,
         dueDay: editDueDay ? parseInt(editDueDay) : null,
+        statementDay: editStatementDay ? parseInt(editStatementDay) : null,
         apr: editApr ? parseFloat(editApr) : null,
       }),
     });
@@ -105,9 +110,16 @@ export default function CardsPage() {
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Card name" style={{ flex: 2, minWidth: 140 }} />
         <input type="number" value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="Limit" style={{ width: 100 }} />
-        <input type="number" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="Due day" style={{ width: 90 }} />
+        <div>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>Statement day</label>
+          <input type="number" value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="e.g. 5" style={{ width: 110, display: "block" }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>Due day</label>
+          <input type="number" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="e.g. 25" style={{ width: 90, display: "block" }} />
+        </div>
         <input type="number" step="0.1" value={apr} onChange={(e) => setApr(e.target.value)} placeholder="APR % (optional)" style={{ width: 130 }} />
-        <button className="btn" onClick={add}>Add card</button>
+        <button className="btn" onClick={add} style={{ alignSelf: "flex-end" }}>Add card</button>
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
@@ -122,16 +134,24 @@ export default function CardsPage() {
                 <ConfirmDeleteButton onConfirm={() => remove(c.id)} />
               </div>
               {editingId === c.id ? (
-                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Card name" style={{ flex: 2, minWidth: 140 }} />
                   <input type="number" value={editLimit} onChange={(e) => setEditLimit(e.target.value)} placeholder="Limit" style={{ width: 100 }} />
-                  <input type="number" value={editDueDay} onChange={(e) => setEditDueDay(e.target.value)} placeholder="Due day" style={{ width: 90 }} />
+                  <div>
+                    <label style={{ fontSize: 11, color: "#8A8370" }}>Statement day</label>
+                    <input type="number" value={editStatementDay} onChange={(e) => setEditStatementDay(e.target.value)} style={{ width: 100, display: "block" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: "#8A8370" }}>Due day</label>
+                    <input type="number" value={editDueDay} onChange={(e) => setEditDueDay(e.target.value)} style={{ width: 90, display: "block" }} />
+                  </div>
                   <input type="number" step="0.1" value={editApr} onChange={(e) => setEditApr(e.target.value)} placeholder="APR %" style={{ width: 100 }} />
-                  <button className="btn" onClick={() => saveEdit(c.id)}>Save</button>
+                  <ConfirmSaveButton onConfirm={() => saveEdit(c.id)} />
                 </div>
               ) : (
                 <div style={{ display: "flex", gap: 20, marginTop: 8, flexWrap: "wrap" }}>
                   <div><div style={{ fontSize: 11, color: "#8A8370" }}>Limit</div><div className="num">${c.limit.toFixed(2)}</div></div>
+                  <div><div style={{ fontSize: 11, color: "#8A8370" }}>Statement day</div><div className="num">{c.statementDay || "—"}</div></div>
                   <div><div style={{ fontSize: 11, color: "#8A8370" }}>Due day</div><div className="num">{c.dueDay || "—"}</div></div>
                   <div><div style={{ fontSize: 11, color: "#8A8370" }}>Amount due</div><div className="num" style={{ fontWeight: 700, color: c.amountDue > 0 ? "#9C4221" : "#0F3D2E" }}>${c.amountDue.toFixed(2)}</div></div>
                   {c.apr != null && <div><div style={{ fontSize: 11, color: "#8A8370" }}>APR</div><div className="num">{c.apr}%</div></div>}

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -153,7 +154,7 @@ export default function SettingsPage() {
                   {editingAcctId === parent.id ? (
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <input autoFocus value={editAcctName} onChange={(e) => setEditAcctName(e.target.value)} style={{ width: 140 }} onKeyDown={(e) => e.key === "Enter" && saveAccountEdit(parent.id)} />
-                      <button className="btn" onClick={() => saveAccountEdit(parent.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                      <ConfirmSaveButton onConfirm={() => saveAccountEdit(parent.id)} />
                       <button className="btn-outline" onClick={() => setEditingAcctId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
                     </span>
                   ) : (
@@ -169,7 +170,7 @@ export default function SettingsPage() {
                       editingAcctId === c.id ? (
                         <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                           <input autoFocus value={editAcctName} onChange={(e) => setEditAcctName(e.target.value)} style={{ width: 130 }} onKeyDown={(e) => e.key === "Enter" && saveAccountEdit(c.id)} />
-                          <button className="btn" onClick={() => saveAccountEdit(c.id)} style={{ padding: "4px 8px", fontSize: 11 }}>Save</button>
+                          <ConfirmSaveButton onConfirm={() => saveAccountEdit(c.id)} />
                           <button className="btn-outline" onClick={() => setEditingAcctId(null)} style={{ padding: "4px 8px", fontSize: 11 }}>Cancel</button>
                         </span>
                       ) : (
@@ -215,7 +216,7 @@ export default function SettingsPage() {
             <div key={p.id} style={{ display: "flex", gap: 8, padding: "6px 0", borderTop: "1px solid #EFEADC", alignItems: "center", flexWrap: "wrap" }}>
               <input autoFocus value={editLabel} onChange={(e) => setEditLabel(e.target.value)} style={{ flex: 1, minWidth: 100 }} />
               <input type="number" step="0.001" value={editRate} onChange={(e) => setEditRate(e.target.value)} style={{ width: 90 }} />
-              <button className="btn" onClick={() => saveProfileEdit(p.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+              <ConfirmSaveButton onConfirm={() => saveProfileEdit(p.id)} />
               <button className="btn-outline" onClick={() => setEditingProfileId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
             </div>
           ) : (

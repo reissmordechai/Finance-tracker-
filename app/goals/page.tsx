@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
@@ -116,7 +117,7 @@ export default function GoalsPage() {
                 <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                   <input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Target amount" style={{ width: 130 }} />
                   <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} style={{ width: 150 }} />
-                  <button className="btn" onClick={() => saveEdit(g.id)}>Save</button>
+                  <ConfirmSaveButton onConfirm={() => saveEdit(g.id)} />
                 </div>
               )}
             </div>

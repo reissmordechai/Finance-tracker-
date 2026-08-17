@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 function monthKey(offset: number) {
   const d = new Date();
@@ -91,7 +92,7 @@ export default function BudgetsPage() {
                 {editingId === b.id ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input type="number" autoFocus value={editLimit} onChange={(e) => setEditLimit(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(b)} />
-                    <button className="btn" onClick={() => saveEdit(b)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                    <ConfirmSaveButton onConfirm={() => saveEdit(b)} />
                     <button className="btn-outline" onClick={() => setEditingId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
                   </div>
                 ) : (

@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   await prisma.card.updateMany({
     where: { id: params.id, userId: auth.userId },
-    data: { name: body.name, limit: body.limit, dueDay: body.dueDay, amountDue: body.amountDue, apr: body.apr },
+    data: { name: body.name, limit: body.limit, dueDay: body.dueDay, statementDay: body.statementDay, amountDue: body.amountDue, apr: body.apr },
   });
   const card = await prisma.card.findFirst({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json(card);

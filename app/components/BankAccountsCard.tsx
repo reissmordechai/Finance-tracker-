@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "./ConfirmDeleteButton";
+import ConfirmSaveButton from "./ConfirmSaveButton";
 
 // Estimated current balance using daily-compounded interest since the
 // balance was last manually confirmed. This is an estimate to fill the gap
@@ -175,7 +176,7 @@ export default function BankAccountsCard() {
                     {editingRateId === a.id ? (
                       <span style={{ marginLeft: 6, display: "inline-flex", gap: 4, alignItems: "center" }}>
                         <input type="number" step="0.01" autoFocus value={editRate} onChange={(e) => setEditRate(e.target.value)} placeholder="APY %" style={{ width: 60 }} onKeyDown={(e) => e.key === "Enter" && saveRate(a.id)} />
-                        <button className="btn" onClick={() => saveRate(a.id)} style={{ padding: "3px 8px", fontSize: 11 }}>Save</button>
+                        <ConfirmSaveButton onConfirm={() => saveRate(a.id)} />
                       </span>
                     ) : (
                       <button onClick={() => startEditRate(a)} className="pill" style={{ marginLeft: 6, border: "none", cursor: "pointer" }}>
@@ -187,7 +188,7 @@ export default function BankAccountsCard() {
                     {editingId === a.id ? (
                       <>
                         <input type="number" step="0.01" autoFocus value={editBalance} onChange={(e) => setEditBalance(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveEdit(a.id)} />
-                        <button className="btn" onClick={() => saveEdit(a.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                        <ConfirmSaveButton onConfirm={() => saveEdit(a.id)} />
                       </>
                     ) : (
                       <button className="btn-outline" onClick={() => startEdit(a)} style={{ padding: "4px 10px", fontSize: 12 }}>

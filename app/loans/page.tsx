@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 function payoffMonths(balance: number, apr: number, payment: number): { months: number; totalInterest: number } | null {
   const monthlyRate = apr / 100 / 12;
@@ -117,7 +118,7 @@ export default function LoansPage() {
                   {editingId === l.id ? (
                     <div style={{ display: "flex", gap: 6 }}>
                       <input type="number" autoFocus value={editBalance} onChange={(e) => setEditBalance(e.target.value)} style={{ width: 100 }} onKeyDown={(e) => e.key === "Enter" && saveBalance(l.id)} />
-                      <button className="btn" onClick={() => saveBalance(l.id)} style={{ padding: "5px 10px", fontSize: 12 }}>Save</button>
+                      <ConfirmSaveButton onConfirm={() => saveBalance(l.id)} />
                     </div>
                   ) : (
                     <button className="btn-outline" onClick={() => { setEditingId(l.id); setEditBalance(String(l.balance)); }} style={{ padding: "4px 10px", fontSize: 12 }}>
@@ -153,7 +154,7 @@ export default function LoansPage() {
                   <input type="number" step="0.1" value={editApr} onChange={(e) => setEditApr(e.target.value)} placeholder="APR %" style={{ width: 100 }} />
                   <input type="number" value={editMinPayment} onChange={(e) => setEditMinPayment(e.target.value)} placeholder="Min payment" style={{ width: 130 }} />
                   <input type="number" value={editDueDay} onChange={(e) => setEditDueDay(e.target.value)} placeholder="Due day" style={{ width: 100 }} />
-                  <button className="btn" onClick={() => saveDetails(l.id)}>Save</button>
+                  <ConfirmSaveButton onConfirm={() => saveDetails(l.id)} />
                 </div>
               )}
               {plannerId === l.id && (

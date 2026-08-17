@@ -78,14 +78,15 @@ model Item {
 }
 
 model Card {
-  id         String   @id @default(cuid())
-  userId     String
-  name       String
-  limit      Float    @default(0)
-  dueDay     Int?
-  amountDue  Float    @default(0)
-  apr        Float?   // annual % rate, optional — used by the payoff planner
-  payments   CardPayment[]
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  limit         Float    @default(0)
+  dueDay        Int?
+  statementDay  Int?     // day of month the statement closes/is generated — usually a few weeks before dueDay
+  amountDue     Float    @default(0)
+  apr           Float?   // annual % rate, optional — used by the payoff planner
+  payments      CardPayment[]
 }
 
 model CardPayment {

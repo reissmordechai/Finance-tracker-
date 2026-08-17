@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 export default function CharityPage() {
   const [entries, setEntries] = useState<any[]>([]);
@@ -153,7 +154,7 @@ export default function CharityPage() {
             <div key={e.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", borderTop: "1px solid #EFEADC", flexWrap: "wrap" }}>
               <input type="number" step="0.01" autoFocus value={editAmount} onChange={(ev) => setEditAmount(ev.target.value)} style={{ width: 110 }} />
               <input value={editNote} onChange={(ev) => setEditNote(ev.target.value)} placeholder="Note" style={{ flex: 1, minWidth: 120 }} />
-              <button className="btn" onClick={() => saveEdit(e.id)} style={{ padding: "6px 12px", fontSize: 12 }}>Save</button>
+              <ConfirmSaveButton onConfirm={() => saveEdit(e.id)} />
               <button className="btn-outline" onClick={() => setEditingId(null)} style={{ padding: "6px 12px", fontSize: 12 }}>Cancel</button>
             </div>
           ) : (

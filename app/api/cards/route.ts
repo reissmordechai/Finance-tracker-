@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       name: body.name,
       limit: body.limit || 0,
       dueDay: body.dueDay || null,
+      statementDay: body.statementDay || null,
       amountDue: body.amountDue || 0,
       apr: body.apr ?? null,
     },
