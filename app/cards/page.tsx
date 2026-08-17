@@ -252,6 +252,25 @@ export default function CardsPage() {
                     <div><div style={{ fontSize: 11, color: "#8A8370" }}>Amount due</div><div className="num" style={{ fontWeight: 700, color: c.amountDue > 0 ? "#9C4221" : "#0F3D2E" }}>${c.amountDue.toFixed(2)}</div></div>
                     {c.apr != null && <div><div style={{ fontSize: 11, color: "#8A8370" }}>APR</div><div className="num">{c.apr}%</div></div>}
                   </div>
+                  {c.limit > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {(() => {
+                        const pct = Math.min(100, (c.amountDue / c.limit) * 100);
+                        const color = pct >= 80 ? "#9C4221" : pct >= 50 ? "#B8863E" : "#2F6B4F";
+                        return (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#8A8370", marginBottom: 3 }}>
+                              <span>Credit used</span>
+                              <span className="num" style={{ color, fontWeight: 600 }}>{pct.toFixed(0)}%</span>
+                            </div>
+                            <div style={{ height: 6, background: "#EFEADC", borderRadius: 3, overflow: "hidden" }}>
+                              <div style={{ width: `${pct}%`, height: "100%", background: color }} />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                   {c.autoPay && (
                     <div style={{ fontSize: 11.5, color: "#5B7B7A", marginTop: 6 }}>
                       ✓ Auto-pay {c.autoPayType === "full" ? "full balance" : "statement balance"} on day {c.autoPayDay || "—"}
