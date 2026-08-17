@@ -54,11 +54,14 @@ export default function BankAccountsCard() {
     const foreign = accounts.filter((a) => a.currencyCode && a.currencyCode !== baseCurrency);
     if (foreign.length === 0) { setConvertedTotal(null); return; }
     (async () => {
-      let sum = accounts.filter((a) => !foreign.includes(a)).reduce((s, a) => s + a.balance, 0);
-      for (const a of foreign) {
-        const { rate } = await fetch(`/api/currency?from=${a.currencyCode}&to=${baseCurrency}`).then((r) => r.json());
-        sum += rate ? a.balance * rate : a.balance;
-      }
+      const baseSum = accounts.filter((a) => !foreign.includes(a)).reduce((s, a) => s + a.balance, 0);
+      const converted = await Promise.all(
+        foreign.map(async (a) => {
+          const { rate } = await fetch(`/api/currency?from=${a.currencyCode}&to=${baseCurrency}`).then((r) => r.json());
+          return rate ? a.balance * rate : a.balance;
+        })
+      );
+      const sum = baseSum + converted.reduce((s, v) => s + v, 0);
       setConvertedTotal(Math.round(sum * 100) / 100);
     })();
   }, [accounts, baseCurrency]);
