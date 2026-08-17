@@ -8,7 +8,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   await prisma.card.updateMany({
     where: { id: params.id, userId: auth.userId },
-    data: { name: body.name, limit: body.limit, dueDay: body.dueDay, statementDay: body.statementDay, amountDue: body.amountDue, apr: body.apr },
+    data: {
+      name: body.name, limit: body.limit, dueDay: body.dueDay, statementDay: body.statementDay, amountDue: body.amountDue, apr: body.apr,
+      currencyCode: body.currencyCode,
+      autoPay: body.autoPay,
+      autoPayDay: body.autoPay ? body.autoPayDay || null : null,
+      autoPayAccountId: body.autoPay ? body.autoPayAccountId || null : null,
+      autoPayType: body.autoPay ? body.autoPayType || null : null,
+    },
   });
   const card = await prisma.card.findFirst({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json(card);

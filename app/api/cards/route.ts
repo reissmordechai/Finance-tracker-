@@ -22,6 +22,11 @@ export async function POST(req: NextRequest) {
       statementDay: body.statementDay || null,
       amountDue: body.amountDue || 0,
       apr: body.apr ?? null,
+      currencyCode: body.currencyCode || "USD",
+      autoPay: !!body.autoPay,
+      autoPayDay: body.autoPay ? body.autoPayDay || null : null,
+      autoPayAccountId: body.autoPay ? body.autoPayAccountId || null : null,
+      autoPayType: body.autoPay ? body.autoPayType || null : null,
     },
   });
   return NextResponse.json(card);
