@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { parseCsv } from "@/lib/csv";
 import { useVoiceInput } from "../components/useVoiceInput";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
+import ConfirmSaveButton from "../components/ConfirmSaveButton";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -46,6 +47,13 @@ export default function TransactionsPage() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
+  const [editTxnType, setEditTxnType] = useState("expense");
+  const [editTxnCategory, setEditTxnCategory] = useState("");
+  const [editTxnAmount, setEditTxnAmount] = useState("");
+  const [editTxnDate, setEditTxnDate] = useState("");
+  const [editTxnVendor, setEditTxnVendor] = useState("");
+  const [editTxnTags, setEditTxnTags] = useState("");
 
   // Charity / maaser
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
@@ -186,6 +194,32 @@ export default function TransactionsPage() {
 
   const remove = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const startEditTxn = (t: any) => {
+    setEditingTxnId(t.id);
+    setEditTxnType(t.type);
+    setEditTxnCategory(t.category);
+    setEditTxnAmount(String(t.amount));
+    setEditTxnDate(t.date.slice(0, 10));
+    setEditTxnVendor(t.vendor || "");
+    setEditTxnTags(t.tags || "");
+  };
+  const saveEditTxn = async (id: string) => {
+    await fetch(`/api/transactions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: editTxnType,
+        category: editTxnCategory,
+        amount: parseFloat(editTxnAmount) || 0,
+        date: editTxnDate,
+        vendor: editTxnVendor || null,
+        tags: editTxnTags || null,
+      }),
+    });
+    setEditingTxnId(null);
     load();
   };
 
@@ -425,6 +459,32 @@ export default function TransactionsPage() {
 
       <div className="card" style={{ padding: 0 }}>
         {filtered.map((t) => (
+          editingTxnId === t.id ? (
+            <div key={t.id} style={{ padding: "12px 14px", borderBottom: "1px solid #EFEADC", background: "#FBF9F2" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <select value={editTxnType} onChange={(e) => setEditTxnType(e.target.value)} style={{ width: 100 }}>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+                <select value={editTxnCategory} onChange={(e) => setEditTxnCategory(e.target.value)} style={{ width: 150 }}>
+                  {categories.filter((c) => c.type === editTxnType).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+                <input type="number" step="0.01" value={editTxnAmount} onChange={(e) => setEditTxnAmount(e.target.value)} placeholder="Amount" style={{ width: 100 }} />
+                <input type="date" value={editTxnDate} onChange={(e) => setEditTxnDate(e.target.value)} style={{ width: 140 }} />
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <select value={editTxnVendor} onChange={(e) => setEditTxnVendor(e.target.value)} style={{ width: 160 }}>
+                  <option value="">Vendor (optional)</option>
+                  {vendors.map((v) => <option key={v.id} value={v.name}>{v.name}</option>)}
+                </select>
+                <input value={editTxnTags} onChange={(e) => setEditTxnTags(e.target.value)} placeholder="Tags (comma separated)" style={{ flex: 1, minWidth: 140 }} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <ConfirmSaveButton onConfirm={() => saveEditTxn(t.id)} />
+                <button className="btn-outline" onClick={() => setEditingTxnId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
           <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid #EFEADC" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {t.receiptImage && (
@@ -434,7 +494,7 @@ export default function TransactionsPage() {
                   style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 6, cursor: "pointer", border: "1px solid #E4DEC9" }}
                 />
               )}
-              <div>
+              <button onClick={() => startEditTxn(t)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
                 <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
@@ -447,7 +507,7 @@ export default function TransactionsPage() {
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="num" style={{ color: t.type === "income" ? "#2F6B4F" : "#9C4221", fontWeight: 600 }}>
@@ -456,6 +516,7 @@ export default function TransactionsPage() {
               <ConfirmDeleteButton onConfirm={() => remove(t.id)} />
             </div>
           </div>
+          )
         ))}
         {filtered.length === 0 && <div style={{ padding: 14, color: "#8A8370" }}>No transactions match.</div>}
       </div>
