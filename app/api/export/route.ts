@@ -13,7 +13,7 @@ function escapeCsv(val: any): string {
 export async function GET() {
   const auth = await requireUser();
   if ("error" in auth) return auth.error;
-  const txns = await prisma.transaction.findMany({ where: { userId: auth.userId }, orderBy: { date: "desc" } });
+  const txns = await prisma.transaction.findMany({ where: { userId: auth.userId, deletedAt: null }, orderBy: { date: "desc" } });
 
   const header = ["Date", "Type", "Account", "Amount", "Vendor", "Note", "Payment Method"];
   const rows = txns.map((t) => [

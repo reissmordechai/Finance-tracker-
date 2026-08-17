@@ -25,7 +25,7 @@ export default async function Dashboard() {
   const cards = await prisma.card.findMany({ where: { userId }, include: { payments: true } });
   const loans = await prisma.loan.findMany({ where: { userId } });
   const loanDebt = loans.reduce((s, l) => s + l.balance, 0);
-  const transactions = await prisma.transaction.findMany({ where: { userId } });
+  const transactions = await prisma.transaction.findMany({ where: { userId, deletedAt: null } });
   const cardDebt = cards.reduce((sum, c) => {
     const charged = transactions.filter((t) => t.type === "expense" && t.cardId === c.id).reduce((s, t) => s + t.amount, 0);
     const paid = c.payments.reduce((s, p) => s + p.amount, 0);
@@ -38,7 +38,7 @@ export default async function Dashboard() {
   const netWorthHistory = await prisma.netWorthSnapshot.findMany({ where: { userId }, orderBy: { date: "asc" } });
   const chartPoints = netWorthHistory.map((s) => ({ date: s.date.toISOString(), value: s.value }));
 
-  const recentTxns = await prisma.transaction.findMany({ where: { userId }, orderBy: { date: "desc" }, take: 5 });
+  const recentTxns = await prisma.transaction.findMany({ where: { userId, deletedAt: null }, orderBy: { date: "desc" }, take: 5 });
   const cardsDue = cards.filter((c) => c.amountDue > 0);
 
   // Budget alerts — this month's spending vs each budget's limit

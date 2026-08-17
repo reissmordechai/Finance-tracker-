@@ -17,7 +17,7 @@ export default async function SummaryPage() {
   const totalBank = bankAccounts.reduce((s, a) => s + a.balance, 0);
 
   const cards = await prisma.card.findMany({ where: { userId }, include: { payments: true } });
-  const transactions = await prisma.transaction.findMany({ where: { userId } });
+  const transactions = await prisma.transaction.findMany({ where: { userId, deletedAt: null } });
   const cardDebt = cards.reduce((sum, c) => {
     const charged = transactions.filter((t) => t.type === "expense" && t.cardId === c.id).reduce((s, t) => s + t.amount, 0);
     const paid = c.payments.reduce((s, p) => s + p.amount, 0);
