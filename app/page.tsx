@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import LineChart from "./components/LineChart";
 import BankAccountsCard from "./components/BankAccountsCard";
+import RecentTransactionsCard from "./components/RecentTransactionsCard";
 import BreakdownBar from "./components/BreakdownBar";
 
 // Force this page to render per-request instead of being pre-built at deploy
@@ -129,19 +130,7 @@ export default async function Dashboard() {
 
       <BankAccountsCard />
 
-      <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: 10 }}>Recent transactions</div>
-        {recentTxns.length === 0 ? (
-          <div style={{ color: "#8A8370", fontSize: 13 }}>Nothing logged yet — head to Transactions to add one.</div>
-        ) : (
-          recentTxns.map((t) => (
-            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
-              <span>{t.category}</span>
-              <span className="num">{t.type === "income" ? "+" : "-"}${t.amount.toFixed(2)}</span>
-            </div>
-          ))
-        )}
-      </div>
+      <RecentTransactionsCard transactions={recentTxns} />
     </main>
   );
 }
