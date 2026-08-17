@@ -48,7 +48,8 @@ model Transaction {
   amount         Float
   note           String?
   vendor         String?
-  paymentMethod  String   @default("cash") // "cash" | "debit" | "card" | "check"
+  paymentMethod  String   @default("cash") // "cash" | "debit" | "card" | "check" | "other"
+  paymentOther   String?  // free-text description when paymentMethod = "other"
   cardId         String?
   bankAccountId  String?
   checkNumber    String?

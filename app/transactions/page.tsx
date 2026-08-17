@@ -29,6 +29,21 @@ function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string>
   });
 }
 
+function paymentLabel(t: any, cards: any[], accounts: any[]): string | null {
+  if (!t.paymentMethod || t.paymentMethod === "cash") return null;
+  if (t.paymentMethod === "card") {
+    const c = cards.find((x) => x.id === t.cardId);
+    return c ? `paid with ${c.name}` : "paid with credit card";
+  }
+  if (t.paymentMethod === "debit") {
+    const a = accounts.find((x) => x.id === t.bankAccountId);
+    return a ? `paid from ${a.name}` : "paid from account";
+  }
+  if (t.paymentMethod === "check") return t.checkNumber ? `check #${t.checkNumber}` : "paid by check";
+  if (t.paymentMethod === "other") return t.paymentOther ? `paid via ${t.paymentOther}` : "other payment method";
+  return null;
+}
+
 export default function TransactionsPage() {
   const [txns, setTxns] = useState<any[]>([]);
   const [charityEntries, setCharityEntries] = useState<any[]>([]);
@@ -54,9 +69,20 @@ export default function TransactionsPage() {
   const [editTxnDate, setEditTxnDate] = useState("");
   const [editTxnVendor, setEditTxnVendor] = useState("");
   const [editTxnTags, setEditTxnTags] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
+  const [editPayCardId, setEditPayCardId] = useState("");
+  const [editPayBankAccountId, setEditPayBankAccountId] = useState("");
+  const [editPayCheckNumber, setEditPayCheckNumber] = useState("");
+  const [editPaymentOther, setEditPaymentOther] = useState("");
   const [showItems, setShowItems] = useState(false);
   const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string }[]>([]);
   const [expandedItemsId, setExpandedItemsId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [payCardId, setPayCardId] = useState("");
+  const [payBankAccountId, setPayBankAccountId] = useState("");
+  const [payCheckNumber, setPayCheckNumber] = useState("");
+  const [paymentOther, setPaymentOther] = useState("");
+  const [cardsList, setCardsList] = useState<any[]>([]);
 
   // Charity / maaser
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
@@ -85,10 +111,13 @@ export default function TransactionsPage() {
   };
   const loadCategories = () => fetch("/api/categories").then((r) => r.json()).then(setCategories);
   const loadVendors = () => fetch("/api/vendors").then((r) => r.json()).then(setVendors);
+  const [bankAccountsList, setBankAccountsList] = useState<any[]>([]);
   useEffect(() => {
     load();
     loadCategories();
     loadVendors();
+    fetch("/api/cards").then((r) => r.json()).then(setCardsList);
+    fetch("/api/bankaccounts").then((r) => r.json()).then(setBankAccountsList);
     fetch("/api/settings/general").then((r) => r.json()).then((d) => {
       setCharityPct(String(d.charityDefaultPct ?? 10));
       setBaseCurrency(d.baseCurrencyCode || "USD");
@@ -181,6 +210,10 @@ export default function TransactionsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type, category, amount: finalAmount, date, tags: tags || null, vendor: vendor || null, receiptImage, currencyCode, originalAmount,
+        paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
+        bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
+        checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
+        paymentOther: paymentMethod === "other" ? paymentOther || null : null,
         items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0 })),
       }),
     }).then((r) => r.json());
@@ -204,6 +237,7 @@ export default function TransactionsPage() {
     setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     setItems([]); setShowItems(false);
+    setPaymentMethod("cash"); setPayCardId(""); setPayBankAccountId(""); setPayCheckNumber(""); setPaymentOther("");
     load();
   };
 
@@ -220,6 +254,11 @@ export default function TransactionsPage() {
     setEditTxnDate(t.date.slice(0, 10));
     setEditTxnVendor(t.vendor || "");
     setEditTxnTags(t.tags || "");
+    setEditPaymentMethod(t.paymentMethod || "cash");
+    setEditPayCardId(t.cardId || "");
+    setEditPayBankAccountId(t.bankAccountId || "");
+    setEditPayCheckNumber(t.checkNumber || "");
+    setEditPaymentOther(t.paymentOther || "");
   };
   const saveEditTxn = async (id: string) => {
     await fetch(`/api/transactions/${id}`, {
@@ -232,6 +271,11 @@ export default function TransactionsPage() {
         date: editTxnDate,
         vendor: editTxnVendor || null,
         tags: editTxnTags || null,
+        paymentMethod: editPaymentMethod,
+        cardId: editPaymentMethod === "card" ? editPayCardId || null : null,
+        bankAccountId: editPaymentMethod === "debit" ? editPayBankAccountId || null : null,
+        checkNumber: editPaymentMethod === "check" ? editPayCheckNumber || null : null,
+        paymentOther: editPaymentMethod === "other" ? editPaymentOther || null : null,
       }),
     });
     setEditingTxnId(null);
@@ -406,6 +450,34 @@ export default function TransactionsPage() {
             );
           })}
         </div>
+        <div style={{ width: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>Paid with</label>
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: 130 }}>
+            <option value="cash">Cash</option>
+            <option value="debit">Account (debit)</option>
+            <option value="card">Credit card</option>
+            <option value="check">Check</option>
+            <option value="other">Other</option>
+          </select>
+          {paymentMethod === "card" && (
+            <select value={payCardId} onChange={(e) => setPayCardId(e.target.value)} style={{ width: 160 }}>
+              <option value="">Which card?</option>
+              {cardsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {paymentMethod === "debit" && (
+            <select value={payBankAccountId} onChange={(e) => setPayBankAccountId(e.target.value)} style={{ width: 160 }}>
+              <option value="">Which account?</option>
+              {bankAccountsList.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          )}
+          {paymentMethod === "check" && (
+            <input value={payCheckNumber} onChange={(e) => setPayCheckNumber(e.target.value)} placeholder="Check #" style={{ width: 120 }} />
+          )}
+          {paymentMethod === "other" && (
+            <input value={paymentOther} onChange={(e) => setPaymentOther(e.target.value)} placeholder="Describe how (e.g. Venmo, gift card)" style={{ width: 220 }} />
+          )}
+        </div>
         <div>
           <label className="btn-outline" style={{ display: "inline-block", cursor: "pointer" }}>
             {uploading ? "…" : receiptImage ? "Photo added ✓" : "Add receipt"}
@@ -524,6 +596,34 @@ export default function TransactionsPage() {
                 </select>
                 <input value={editTxnTags} onChange={(e) => setEditTxnTags(e.target.value)} placeholder="Tags (comma separated)" style={{ flex: 1, minWidth: 140 }} />
               </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+                <label style={{ fontSize: 11, color: "#8A8370" }}>Paid with</label>
+                <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} style={{ width: 130 }}>
+                  <option value="cash">Cash</option>
+                  <option value="debit">Account (debit)</option>
+                  <option value="card">Credit card</option>
+                  <option value="check">Check</option>
+                  <option value="other">Other</option>
+                </select>
+                {editPaymentMethod === "card" && (
+                  <select value={editPayCardId} onChange={(e) => setEditPayCardId(e.target.value)} style={{ width: 160 }}>
+                    <option value="">Which card?</option>
+                    {cardsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+                {editPaymentMethod === "debit" && (
+                  <select value={editPayBankAccountId} onChange={(e) => setEditPayBankAccountId(e.target.value)} style={{ width: 160 }}>
+                    <option value="">Which account?</option>
+                    {bankAccountsList.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                )}
+                {editPaymentMethod === "check" && (
+                  <input value={editPayCheckNumber} onChange={(e) => setEditPayCheckNumber(e.target.value)} placeholder="Check #" style={{ width: 110 }} />
+                )}
+                {editPaymentMethod === "other" && (
+                  <input value={editPaymentOther} onChange={(e) => setEditPaymentOther(e.target.value)} placeholder="Describe how" style={{ width: 180 }} />
+                )}
+              </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <ConfirmSaveButton onConfirm={() => saveEditTxn(t.id)} />
                 <button className="btn-outline" onClick={() => setEditingTxnId(null)} style={{ padding: "5px 10px", fontSize: 12 }}>Cancel</button>
@@ -543,6 +643,9 @@ export default function TransactionsPage() {
                 <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
+                  {paymentLabel(t, cardsList, bankAccountsList) && (
+                    <span style={{ marginLeft: 6 }}>· {paymentLabel(t, cardsList, bankAccountsList)}</span>
+                  )}
                   {t.currencyCode && t.originalAmount != null && (
                     <span style={{ marginLeft: 6 }}>· originally {t.originalAmount.toFixed(2)} {t.currencyCode}</span>
                   )}

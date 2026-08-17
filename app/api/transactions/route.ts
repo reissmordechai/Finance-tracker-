@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       note: body.note || "",
       vendor: body.vendor || "",
       paymentMethod: body.paymentMethod || "cash",
+      paymentOther: body.paymentOther || null,
       cardId: body.cardId || null,
       bankAccountId: body.bankAccountId || null,
       checkNumber: body.checkNumber || null,

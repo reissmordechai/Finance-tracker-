@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       note: body.note,
       vendor: body.vendor,
       paymentMethod: body.paymentMethod,
+      paymentOther: body.paymentOther,
       cardId: body.cardId,
       bankAccountId: body.bankAccountId,
       checkNumber: body.checkNumber,
