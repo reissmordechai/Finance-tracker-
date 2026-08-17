@@ -54,6 +54,9 @@ export default function TransactionsPage() {
   const [editTxnDate, setEditTxnDate] = useState("");
   const [editTxnVendor, setEditTxnVendor] = useState("");
   const [editTxnTags, setEditTxnTags] = useState("");
+  const [showItems, setShowItems] = useState(false);
+  const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string }[]>([]);
+  const [expandedItemsId, setExpandedItemsId] = useState<string | null>(null);
 
   // Charity / maaser
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
@@ -147,6 +150,12 @@ export default function TransactionsPage() {
 
   const charityAmount = charityOverrideAmount ? parseFloat(charityOverrideAmount) || 0 : (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
 
+  const addItemRow = () => setItems((prev) => [...prev, { id: crypto.randomUUID(), name: "", qty: "1", unit: "", unitPrice: "" }]);
+  const updateItemRow = (id: string, field: string, value: string) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+  const removeItemRow = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
+  const itemsTotal = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0), 0);
+
   const add = async () => {
     const amt = parseFloat(amount);
     if (!amt || !category) return;
@@ -165,10 +174,15 @@ export default function TransactionsPage() {
       }
     }
 
+    const validItems = items.filter((it) => it.name.trim() && parseFloat(it.qty) > 0);
+
     const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, category, amount: finalAmount, date, tags: tags || null, vendor: vendor || null, receiptImage, currencyCode, originalAmount }),
+      body: JSON.stringify({
+        type, category, amount: finalAmount, date, tags: tags || null, vendor: vendor || null, receiptImage, currencyCode, originalAmount,
+        items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0 })),
+      }),
     }).then((r) => r.json());
 
     if (type === "income" && charityEligible && charityAmount > 0) {
@@ -189,6 +203,7 @@ export default function TransactionsPage() {
 
     setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
+    setItems([]); setShowItems(false);
     load();
   };
 
@@ -366,6 +381,9 @@ export default function TransactionsPage() {
         )}
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" style={{ width: 180 }} />
+        <button type="button" className={showItems ? "btn" : "btn-outline"} onClick={() => setShowItems((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
+          {showItems ? "Hide items" : "+ Itemize"}
+        </button>
         <div style={{ display: "flex", gap: 4 }}>
           {["Joint", "Personal"].map((label) => {
             const has = tags.split(",").map((t) => t.trim().toLowerCase()).includes(label.toLowerCase());
@@ -396,6 +414,33 @@ export default function TransactionsPage() {
         </div>
         <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
       </div>
+
+      {showItems && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Itemize this transaction</div>
+          {items.map((it) => (
+            <div key={it.id} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <input value={it.name} onChange={(e) => updateItemRow(it.id, "name", e.target.value)} placeholder="Item name" style={{ flex: 2, minWidth: 120 }} />
+              <input type="number" step="0.01" value={it.qty} onChange={(e) => updateItemRow(it.id, "qty", e.target.value)} placeholder="Qty" style={{ width: 70 }} />
+              <input value={it.unit} onChange={(e) => updateItemRow(it.id, "unit", e.target.value)} placeholder="unit" style={{ width: 70 }} />
+              <input type="number" step="0.01" value={it.unitPrice} onChange={(e) => updateItemRow(it.id, "unitPrice", e.target.value)} placeholder="Price each" style={{ width: 100 }} />
+              <span className="num" style={{ fontSize: 12, color: "#8A8370", width: 60 }}>${((parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0)).toFixed(2)}</span>
+              <button onClick={() => removeItemRow(it.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <button className="btn-outline" onClick={addItemRow} style={{ padding: "6px 12px", fontSize: 12 }}>+ Add item</button>
+            {items.length > 0 && (
+              <span style={{ fontSize: 12.5, color: "#5B5540" }}>
+                Items total: <span className="num" style={{ fontWeight: 600 }}>${itemsTotal.toFixed(2)}</span>
+                {Math.abs(itemsTotal - (parseFloat(amount) || 0)) > 0.01 && amount && (
+                  <button onClick={() => setAmount(itemsTotal.toFixed(2))} className="pill" style={{ marginLeft: 8, border: "none", cursor: "pointer" }}>Use as amount</button>
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {type === "income" && (
         <div className="card" style={{ marginBottom: 16, background: "#FBF9F2" }}>
@@ -508,6 +553,26 @@ export default function TransactionsPage() {
                   )}
                 </div>
               </button>
+              {t.items && t.items.length > 0 && (
+                <div style={{ marginTop: 2 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setExpandedItemsId(expandedItemsId === t.id ? null : t.id); }}
+                    style={{ border: "none", background: "none", padding: 0, fontSize: 11, color: "#B8863E", cursor: "pointer" }}
+                  >
+                    {expandedItemsId === t.id ? "Hide" : `${t.items.length} item${t.items.length !== 1 ? "s" : ""}`}
+                  </button>
+                  {expandedItemsId === t.id && (
+                    <div style={{ marginTop: 4, paddingLeft: 8, borderLeft: "2px solid #EFEADC" }}>
+                      {t.items.map((it: any) => (
+                        <div key={it.id} style={{ fontSize: 11.5, color: "#5B5540", display: "flex", justifyContent: "space-between", maxWidth: 260 }}>
+                          <span>{it.qty} {it.unit} {it.name}</span>
+                          <span className="num">${(it.qty * it.unitPrice).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span className="num" style={{ color: t.type === "income" ? "#2F6B4F" : "#9C4221", fontWeight: 600 }}>
