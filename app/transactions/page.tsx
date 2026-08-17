@@ -38,6 +38,10 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState("");
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [vendor, setVendor] = useState("");
+  const [addingNewVendor, setAddingNewVendor] = useState(false);
+  const [newVendorName, setNewVendorName] = useState("");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -68,9 +72,11 @@ export default function TransactionsPage() {
     fetch("/api/charity").then((r) => r.json()).then(setCharityEntries);
   };
   const loadCategories = () => fetch("/api/categories").then((r) => r.json()).then(setCategories);
+  const loadVendors = () => fetch("/api/vendors").then((r) => r.json()).then(setVendors);
   useEffect(() => {
     load();
     loadCategories();
+    loadVendors();
     fetch("/api/settings/general").then((r) => r.json()).then((d) => {
       setCharityPct(String(d.charityDefaultPct ?? 10));
       setBaseCurrency(d.baseCurrencyCode || "USD");
@@ -109,6 +115,19 @@ export default function TransactionsPage() {
     loadCategories();
   };
 
+  const confirmNewVendor = async () => {
+    const name = newVendorName.trim();
+    if (!name) return;
+    const created = await fetch("/api/vendors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }).then((r) => r.json());
+    setVendor(created.name);
+    setNewVendorName(""); setAddingNewVendor(false);
+    loadVendors();
+  };
+
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -140,7 +159,7 @@ export default function TransactionsPage() {
     const created = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, category, amount: finalAmount, date, tags: tags || null, receiptImage, currencyCode, originalAmount }),
+      body: JSON.stringify({ type, category, amount: finalAmount, date, tags: tags || null, vendor: vendor || null, receiptImage, currencyCode, originalAmount }),
     }).then((r) => r.json());
 
     if (type === "income" && charityEligible && charityAmount > 0) {
@@ -159,7 +178,7 @@ export default function TransactionsPage() {
       });
     }
 
-    setAmount(""); setTags(""); setReceiptImage(null);
+    setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     load();
   };
@@ -277,6 +296,20 @@ export default function TransactionsPage() {
             </select>
           )}
         </div>
+        <div>
+          {addingNewVendor ? (
+            <div style={{ display: "flex", gap: 4 }}>
+              <input autoFocus value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} placeholder="e.g. Trader Joe's" style={{ width: 140 }} onKeyDown={(e) => e.key === "Enter" && confirmNewVendor()} />
+              <button className="btn" onClick={confirmNewVendor} style={{ padding: "9px 10px" }}>OK</button>
+            </div>
+          ) : (
+            <select value={vendor} onChange={(e) => { if (e.target.value === "__new__") setAddingNewVendor(true); else setVendor(e.target.value); }} style={{ width: 160 }}>
+              <option value="">Vendor (optional)</option>
+              {vendors.map((v) => <option key={v.id} value={v.name}>{v.name}</option>)}
+              <option value="__new__">+ New vendor…</option>
+            </select>
+          )}
+        </div>
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <select value={entryCurrency} onChange={(e) => setEntryCurrency(e.target.value)} style={{ width: 90 }}>
           {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
@@ -391,7 +424,7 @@ export default function TransactionsPage() {
                 />
               )}
               <div>
-                <div>{t.category}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
+                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
                   {t.currencyCode && t.originalAmount != null && (
