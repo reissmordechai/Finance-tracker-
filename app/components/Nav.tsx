@@ -10,7 +10,7 @@ const links = [
   { href: "/transactions", label: "Transactions" },
   { href: "/cards", label: "Cards" },
   { href: "/loans", label: "Loans" },
-  { href: "/other-accounts", label: "Other" },
+  { href: "/other-accounts", label: "Accounts" },
   { href: "/holdings", label: "Holdings" },
   { href: "/market", label: "Market" },
   { href: "/charity", label: "Charity" },

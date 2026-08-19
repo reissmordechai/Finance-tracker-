@@ -57,9 +57,9 @@ export default function OtherAccountsPage() {
 
   return (
     <main className="page">
-      <h1 style={{ color: "#0F3D2E" }}>Other Assets &amp; Liabilities</h1>
+      <h1 style={{ color: "#0F3D2E" }}>Accounts</h1>
       <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
-        Anything not already covered by Bank Accounts, Holdings, Cards, or Loans — informal debts you owe someone, physical assets you own, or an ownership stake somewhere. This flows into your net worth on the Dashboard.
+        Add any asset, liability, or equity account here — anything not already covered by Bank Accounts, Holdings, Cards, or Loans. Informal debts you owe someone, physical assets you own, or an ownership stake somewhere. This flows into your net worth on the Dashboard.
       </p>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
