@@ -281,3 +281,16 @@ model CharityEntry {
   note          String?
   transactionId String?  // links back to the Transaction that triggered it, so it can show inline
 }
+
+// General-purpose net worth items that aren't already covered by Bank
+// Accounts, Holdings, Cards, or Loans — informal debts you owe someone,
+// physical assets you own, or equity/ownership stakes. Assets and equity add
+// to net worth; liabilities subtract from it.
+model OtherAccount {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  kind   String // "asset" | "liability" | "equity"
+  value  Float  @default(0)
+  note   String?
+}

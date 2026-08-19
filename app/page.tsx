@@ -20,7 +20,7 @@ export default async function Dashboard() {
   // All of these are independent of each other, so fetch them concurrently
   // instead of one-at-a-time — this alone roughly cuts Dashboard load time
   // to the length of the single slowest query instead of the sum of all of them.
-  const [holdings, bankAccounts, cards, loans, transactions, netWorthHistory, recentTxns, budgets, charityEntries] = await Promise.all([
+  const [holdings, bankAccounts, cards, loans, transactions, netWorthHistory, recentTxns, budgets, charityEntries, otherAccounts] = await Promise.all([
     prisma.holding.findMany({ where: { userId } }),
     prisma.bankAccount.findMany({ where: { userId } }),
     prisma.card.findMany({ where: { userId }, include: { payments: true } }),
@@ -30,6 +30,7 @@ export default async function Dashboard() {
     prisma.transaction.findMany({ where: { userId, deletedAt: null }, orderBy: { date: "desc" }, take: 5 }),
     prisma.budget.findMany({ where: { userId } }),
     prisma.charityEntry.findMany({ where: { userId } }),
+    prisma.otherAccount.findMany({ where: { userId } }),
   ]);
 
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
@@ -40,9 +41,11 @@ export default async function Dashboard() {
     const paid = c.payments.reduce((s, p) => s + p.amount, 0);
     return sum + (charged - paid);
   }, 0);
-  const totalDebt = cardDebt + loanDebt;
+  const otherAssets = otherAccounts.filter((a) => a.kind === "asset" || a.kind === "equity").reduce((s, a) => s + a.value, 0);
+  const otherLiabilities = otherAccounts.filter((a) => a.kind === "liability").reduce((s, a) => s + a.value, 0);
+  const totalDebt = cardDebt + loanDebt + otherLiabilities;
 
-  const netWorth = totalBank + totalHoldings - totalDebt;
+  const netWorth = totalBank + totalHoldings + otherAssets - totalDebt;
   const chartPoints = netWorthHistory.map((s) => ({ date: s.date.toISOString(), value: s.value }));
   const cardsDue = cards.filter((c) => c.amountDue > 0);
 
@@ -116,6 +119,8 @@ export default async function Dashboard() {
           <div><div style={{ fontSize: 11, color: "#8A8370" }}>Holdings</div><div className="num" style={{ color: "#2F6B4F" }}>${totalHoldings.toFixed(2)}</div></div>
           <div><div style={{ fontSize: 11, color: "#8A8370" }}>Card debt</div><div className="num" style={{ color: "#9C4221" }}>${cardDebt.toFixed(2)}</div></div>
           {loanDebt > 0 && <div><div style={{ fontSize: 11, color: "#8A8370" }}>Loans</div><div className="num" style={{ color: "#9C4221" }}>${loanDebt.toFixed(2)}</div></div>}
+          {otherAssets > 0 && <div><div style={{ fontSize: 11, color: "#8A8370" }}>Other assets</div><div className="num" style={{ color: "#2F6B4F" }}>${otherAssets.toFixed(2)}</div></div>}
+          {otherLiabilities > 0 && <div><div style={{ fontSize: 11, color: "#8A8370" }}>Other owed</div><div className="num" style={{ color: "#9C4221" }}>${otherLiabilities.toFixed(2)}</div></div>}
         </div>
         <BreakdownBar bank={totalBank} holdings={totalHoldings} debt={totalDebt} />
         <div style={{ marginTop: 14 }}>

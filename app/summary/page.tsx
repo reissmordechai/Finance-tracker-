@@ -10,13 +10,14 @@ export default async function SummaryPage() {
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { blocked: true } });
   if (!me || me.blocked) redirect("/login");
 
-  const [holdings, bankAccounts, cards, transactions, loans, charityEntries] = await Promise.all([
+  const [holdings, bankAccounts, cards, transactions, loans, charityEntries, otherAccounts] = await Promise.all([
     prisma.holding.findMany({ where: { userId } }),
     prisma.bankAccount.findMany({ where: { userId } }),
     prisma.card.findMany({ where: { userId }, include: { payments: true } }),
     prisma.transaction.findMany({ where: { userId, deletedAt: null } }),
     prisma.loan.findMany({ where: { userId } }),
     prisma.charityEntry.findMany({ where: { userId } }),
+    prisma.otherAccount.findMany({ where: { userId } }),
   ]);
 
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
@@ -27,8 +28,10 @@ export default async function SummaryPage() {
     return sum + (charged - paid);
   }, 0);
   const loanDebt = loans.reduce((s, l) => s + l.balance, 0);
+  const otherAssets = otherAccounts.filter((a) => a.kind === "asset" || a.kind === "equity").reduce((s, a) => s + a.value, 0);
+  const otherLiabilities = otherAccounts.filter((a) => a.kind === "liability").reduce((s, a) => s + a.value, 0);
 
-  const netWorth = totalBank + totalHoldings - cardDebt - loanDebt;
+  const netWorth = totalBank + totalHoldings + otherAssets - cardDebt - loanDebt - otherLiabilities;
 
   const charityOwed = charityEntries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
   const charityGiven = charityEntries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
