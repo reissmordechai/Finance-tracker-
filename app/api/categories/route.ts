@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const existing = await prisma.category.findUnique({ where: { userId_name_type: { userId: auth.userId, name, type } } });
   if (existing) return NextResponse.json(existing);
-  const category = await prisma.category.create({ data: { userId: auth.userId, name, type, parentId: body.parentId || null } });
+  const category = await prisma.category.create({
+    data: {
+      userId: auth.userId, name, type, parentId: body.parentId || null,
+      linkedAccountKind: type === "expense" ? body.linkedAccountKind || null : null,
+      linkedAccountId: type === "expense" ? body.linkedAccountId || null : null,
+    },
+  });
   return NextResponse.json(category);
 }

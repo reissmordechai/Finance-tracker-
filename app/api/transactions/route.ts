@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/requireUser";
+import { adjustLinkedAccountForTransaction } from "@/lib/linkedAccount";
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser();
@@ -47,5 +48,6 @@ export async function POST(req: NextRequest) {
     },
     include: { items: true },
   });
+  await adjustLinkedAccountForTransaction(auth.userId, txn.type, txn.category, txn.amount, 1);
   return NextResponse.json(txn);
 }

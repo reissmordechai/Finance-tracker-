@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentPrice, getExchangeRate } from "@/lib/stockPrice";
+import { adjustLinkedAccountForTransaction } from "@/lib/linkedAccount";
 
 function addInterval(date: Date, freq: string): Date {
   const d = new Date(date.getTime());
@@ -84,6 +85,7 @@ export async function GET(req: NextRequest) {
             recurringId: rule.id,
           },
         });
+        await adjustLinkedAccountForTransaction(rule.userId, rule.type, rule.category, postAmount, 1);
       }
       await prisma.recurring.update({ where: { id: rule.id }, data: { lastGenerated: cursor } });
       posted++;

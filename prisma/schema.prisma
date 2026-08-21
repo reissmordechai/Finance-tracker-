@@ -31,11 +31,13 @@ model LoginAttempt {
 }
 
 model Category {
-  id       String  @id @default(cuid())
-  userId   String
-  name     String
-  type     String  // "income" | "expense"
-  parentId String? // set when this is a sub-account (e.g. "Electric" under "Utilities")
+  id                String  @id @default(cuid())
+  userId            String
+  name              String
+  type              String  // "income" | "expense"
+  parentId          String? // set when this is a sub-account (e.g. "Electric" under "Utilities")
+  linkedAccountKind String? // "liability" | "asset" — only meaningful for expense accounts
+  linkedAccountId   String? // which OtherAccount this expense account is tied to
   @@unique([userId, name, type])
 }
 

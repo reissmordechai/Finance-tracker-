@@ -16,6 +16,9 @@ export default function SettingsPage() {
   const [acctTab, setAcctTab] = useState("expense");
   const [newAcctName, setNewAcctName] = useState("");
   const [newAcctParent, setNewAcctParent] = useState("");
+  const [newAcctLinkKind, setNewAcctLinkKind] = useState("");
+  const [newAcctLinkId, setNewAcctLinkId] = useState("");
+  const [otherAccounts, setOtherAccounts] = useState<any[]>([]);
   const [editingAcctId, setEditingAcctId] = useState<string | null>(null);
   const [editAcctName, setEditAcctName] = useState("");
 
@@ -32,6 +35,7 @@ export default function SettingsPage() {
   useEffect(() => {
     load();
     loadAccounts();
+    fetch("/api/other-accounts").then((r) => r.json()).then(setOtherAccounts);
     fetch("/api/settings/general").then((r) => r.json()).then((d) => {
       setGeneral(d);
       setCurrency(d.currency || "$");
@@ -50,9 +54,13 @@ export default function SettingsPage() {
     await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, type: acctTab, parentId: newAcctParent || null }),
+      body: JSON.stringify({
+        name, type: acctTab, parentId: newAcctParent || null,
+        linkedAccountKind: acctTab === "expense" ? newAcctLinkKind || null : null,
+        linkedAccountId: acctTab === "expense" ? newAcctLinkId || null : null,
+      }),
     });
-    setNewAcctName(""); setNewAcctParent("");
+    setNewAcctName(""); setNewAcctParent(""); setNewAcctLinkKind(""); setNewAcctLinkId("");
     loadAccounts();
   };
   const removeAccount = async (id: string) => {
@@ -160,6 +168,11 @@ export default function SettingsPage() {
                   ) : (
                     <span style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBF9F2", border: "1px solid #D8D0BC", borderRadius: 16, padding: "5px 10px 5px 14px", fontSize: 13, fontWeight: 600 }}>
                       <button onClick={() => startEditAccount(parent)} style={{ border: "none", background: "none", padding: 0, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{parent.name}</button>
+                      {parent.linkedAccountId && (
+                        <span style={{ fontSize: 10.5, fontWeight: 400, color: parent.linkedAccountKind === "liability" ? "#9C4221" : "#2F6B4F" }}>
+                          → {otherAccounts.find((a) => a.id === parent.linkedAccountId)?.name || parent.linkedAccountKind}
+                        </span>
+                      )}
                       <ConfirmDeleteButton onConfirm={() => removeAccount(parent.id)} />
                     </span>
                   )}
@@ -194,8 +207,28 @@ export default function SettingsPage() {
             <option value="">Top-level account</option>
             {accounts.filter((a) => a.type === acctTab && !a.parentId).map((p) => <option key={p.id} value={p.id}>Sub-account of {p.name}</option>)}
           </select>
+          {acctTab === "expense" && (
+            <>
+              <select value={newAcctLinkKind} onChange={(e) => { setNewAcctLinkKind(e.target.value); setNewAcctLinkId(""); }} style={{ width: 150 }}>
+                <option value="">Not linked</option>
+                <option value="liability">Pays down a liability</option>
+                <option value="asset">Builds up an asset</option>
+              </select>
+              {newAcctLinkKind && (
+                <select value={newAcctLinkId} onChange={(e) => setNewAcctLinkId(e.target.value)} style={{ width: 170 }}>
+                  <option value="">Which {newAcctLinkKind}?</option>
+                  {otherAccounts.filter((a) => a.kind === newAcctLinkKind).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              )}
+            </>
+          )}
           <button className="btn" onClick={addAccount}>Add</button>
         </div>
+        {acctTab === "expense" && otherAccounts.filter((a) => a.kind === "liability" || a.kind === "asset").length === 0 && (
+          <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 6 }}>
+            Add a Liability or Asset first on the <Link href="/other-accounts" style={{ color: "#B8863E" }}>Accounts</Link> tab to be able to link an expense account to it.
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

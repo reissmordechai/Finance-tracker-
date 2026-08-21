@@ -8,7 +8,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   const name = (body.name || "").trim();
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 });
-  await prisma.category.updateMany({ where: { id: params.id, userId: auth.userId }, data: { name } });
+  await prisma.category.updateMany({
+    where: { id: params.id, userId: auth.userId },
+    data: {
+      name,
+      ...(body.linkedAccountKind !== undefined ? { linkedAccountKind: body.linkedAccountKind || null } : {}),
+      ...(body.linkedAccountId !== undefined ? { linkedAccountId: body.linkedAccountId || null } : {}),
+    },
+  });
   const category = await prisma.category.findFirst({ where: { id: params.id, userId: auth.userId } });
   return NextResponse.json(category);
 }
