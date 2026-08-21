@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name and a valid kind are required" }, { status: 400 });
   }
   const account = await prisma.otherAccount.create({
-    data: { userId: auth.userId, name: body.name, kind: body.kind, value: body.value || 0, note: body.note || null },
+    data: { userId: auth.userId, name: body.name, kind: body.kind, value: body.value || 0, note: body.note || null, parentId: body.parentId || null },
   });
   return NextResponse.json(account);
 }
