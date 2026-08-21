@@ -5,6 +5,7 @@ import { parseCsv } from "@/lib/csv";
 import { useVoiceInput } from "../components/useVoiceInput";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 import ConfirmSaveButton from "../components/ConfirmSaveButton";
+import Autocomplete from "../components/Autocomplete";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,15 +51,11 @@ export default function TransactionsPage() {
   const [type, setType] = useState("expense");
   const [categories, setCategories] = useState<any[]>([]);
   const [category, setCategory] = useState("");
-  const [addingNewCat, setAddingNewCat] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [tags, setTags] = useState("");
   const [vendors, setVendors] = useState<any[]>([]);
   const [vendor, setVendor] = useState("");
-  const [addingNewVendor, setAddingNewVendor] = useState(false);
-  const [newVendorName, setNewVendorName] = useState("");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -145,32 +142,6 @@ export default function TransactionsPage() {
     setCharityEligible(null); setIsCharityPayment(null);
     if (!catsForType.find((c) => c.name === category)) setCategory(catsForType[0]?.name || "");
   }, [type, categories]);
-
-  const confirmNewCategory = async () => {
-    const name = newCatName.trim();
-    if (!name) return;
-    const created = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, type }),
-    }).then((r) => r.json());
-    setCategory(created.name);
-    setNewCatName(""); setAddingNewCat(false);
-    loadCategories();
-  };
-
-  const confirmNewVendor = async () => {
-    const name = newVendorName.trim();
-    if (!name) return;
-    const created = await fetch("/api/vendors", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }).then((r) => r.json());
-    setVendor(created.name);
-    setNewVendorName(""); setAddingNewVendor(false);
-    loadVendors();
-  };
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -402,42 +373,44 @@ export default function TransactionsPage() {
           <option value="income">Income</option>
         </select>
         <div>
-          {addingNewCat ? (
-            <div style={{ display: "flex", gap: 4 }}>
-              <input autoFocus value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="e.g. Groceries" style={{ width: 130 }} onKeyDown={(e) => e.key === "Enter" && confirmNewCategory()} />
-              <button className="btn" onClick={confirmNewCategory} style={{ padding: "9px 10px" }}>OK</button>
-            </div>
-          ) : (
-            <select value={category} onChange={(e) => { if (e.target.value === "__new__") setAddingNewCat(true); else setCategory(e.target.value); }} style={{ width: 160 }}>
-              {catsForType.length === 0 && <option value="">No accounts yet</option>}
-              {catsForType.filter((c) => !c.parentId).map((parent) => {
-                const children = catsForType.filter((c) => c.parentId === parent.id);
-                return children.length > 0 ? (
-                  <optgroup key={parent.id} label={parent.name}>
-                    <option value={parent.name}>{parent.name} (general)</option>
-                    {children.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </optgroup>
-                ) : (
-                  <option key={parent.id} value={parent.name}>{parent.name}</option>
-                );
-              })}
-              <option value="__new__">+ New account…</option>
-            </select>
-          )}
+          <Autocomplete
+            value={category}
+            onChange={setCategory}
+            options={catsForType.map((c) => ({
+              value: c.name,
+              label: c.name,
+              group: c.parentId ? catsForType.find((p) => p.id === c.parentId)?.name : undefined,
+            }))}
+            placeholder="Type to search accounts…"
+            onCreateNew={async (name) => {
+              const created = await fetch("/api/categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, type }),
+              }).then((r) => r.json());
+              setCategory(created.name);
+              loadCategories();
+            }}
+            style={{ width: 180 }}
+          />
         </div>
         <div>
-          {addingNewVendor ? (
-            <div style={{ display: "flex", gap: 4 }}>
-              <input autoFocus value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} placeholder="e.g. Trader Joe's" style={{ width: 140 }} onKeyDown={(e) => e.key === "Enter" && confirmNewVendor()} />
-              <button className="btn" onClick={confirmNewVendor} style={{ padding: "9px 10px" }}>OK</button>
-            </div>
-          ) : (
-            <select value={vendor} onChange={(e) => { if (e.target.value === "__new__") setAddingNewVendor(true); else setVendor(e.target.value); }} style={{ width: 160 }}>
-              <option value="">Vendor (optional)</option>
-              {vendors.map((v) => <option key={v.id} value={v.name}>{v.name}</option>)}
-              <option value="__new__">+ New vendor…</option>
-            </select>
-          )}
+          <Autocomplete
+            value={vendor}
+            onChange={setVendor}
+            options={vendors.map((v) => ({ value: v.name, label: v.name }))}
+            placeholder="Vendor (optional)"
+            onCreateNew={async (name) => {
+              const created = await fetch("/api/vendors", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+              }).then((r) => r.json());
+              setVendor(created.name);
+              loadVendors();
+            }}
+            style={{ width: 180 }}
+          />
         </div>
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <select value={entryCurrency} onChange={(e) => setEntryCurrency(e.target.value)} style={{ width: 90 }}>
@@ -636,17 +609,24 @@ export default function TransactionsPage() {
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
                 </select>
-                <select value={editTxnCategory} onChange={(e) => setEditTxnCategory(e.target.value)} style={{ width: 150 }}>
-                  {categories.filter((c) => c.type === editTxnType).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
+                <Autocomplete
+                  value={editTxnCategory}
+                  onChange={setEditTxnCategory}
+                  options={categories.filter((c) => c.type === editTxnType).map((c) => ({ value: c.name, label: c.name }))}
+                  placeholder="Account"
+                  style={{ width: 150 }}
+                />
                 <input type="number" step="0.01" value={editTxnAmount} onChange={(e) => setEditTxnAmount(e.target.value)} placeholder="Amount" style={{ width: 100 }} />
                 <input type="date" value={editTxnDate} onChange={(e) => setEditTxnDate(e.target.value)} style={{ width: 140 }} />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                <select value={editTxnVendor} onChange={(e) => setEditTxnVendor(e.target.value)} style={{ width: 160 }}>
-                  <option value="">Vendor (optional)</option>
-                  {vendors.map((v) => <option key={v.id} value={v.name}>{v.name}</option>)}
-                </select>
+                <Autocomplete
+                  value={editTxnVendor}
+                  onChange={setEditTxnVendor}
+                  options={vendors.map((v) => ({ value: v.name, label: v.name }))}
+                  placeholder="Vendor (optional)"
+                  style={{ width: 160 }}
+                />
                 <input value={editTxnTags} onChange={(e) => setEditTxnTags(e.target.value)} placeholder="Tags (comma separated)" style={{ flex: 1, minWidth: 140 }} />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
