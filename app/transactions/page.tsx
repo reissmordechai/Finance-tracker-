@@ -56,6 +56,7 @@ export default function TransactionsPage() {
   const [tags, setTags] = useState("");
   const [vendors, setVendors] = useState<any[]>([]);
   const [vendor, setVendor] = useState("");
+  const [categoryAutoFilled, setCategoryAutoFilled] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -142,6 +143,26 @@ export default function TransactionsPage() {
     setCharityEligible(null); setIsCharityPayment(null);
     if (!catsForType.find((c) => c.name === category)) setCategory(catsForType[0]?.name || "");
   }, [type, categories]);
+
+  // When a vendor is chosen (exact match to an existing vendor), suggest the
+  // account most often used with them in the past — still fully editable.
+  useEffect(() => {
+    const v = vendor.trim().toLowerCase();
+    if (!v) { setCategoryAutoFilled(false); return; }
+    const matches = txns.filter((t) => t.type === type && t.vendor && t.vendor.trim().toLowerCase() === v);
+    if (matches.length === 0) { setCategoryAutoFilled(false); return; }
+    const counts: Record<string, { count: number; lastDate: string }> = {};
+    matches.forEach((t) => {
+      if (!counts[t.category]) counts[t.category] = { count: 0, lastDate: t.date };
+      counts[t.category].count++;
+      if (t.date > counts[t.category].lastDate) counts[t.category].lastDate = t.date;
+    });
+    const [bestCategory] = Object.entries(counts).sort(
+      (a, b) => b[1].count - a[1].count || (b[1].lastDate > a[1].lastDate ? 1 : -1)
+    )[0];
+    setCategory(bestCategory);
+    setCategoryAutoFilled(true);
+  }, [vendor, type, txns]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,6 +252,7 @@ export default function TransactionsPage() {
 
     setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
     setSplitEnabled(false); setSplitCategory2(""); setSplitAmount2("");
+    setCategoryAutoFilled(false);
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     setItems([]); setShowItems(false);
     setPaymentMethod("cash"); setPayCardId(""); setPayBankAccountId(""); setPayCheckNumber(""); setPaymentOther("");
@@ -375,7 +397,7 @@ export default function TransactionsPage() {
         <div>
           <Autocomplete
             value={category}
-            onChange={setCategory}
+            onChange={(v) => { setCategory(v); setCategoryAutoFilled(false); }}
             options={catsForType.map((c) => ({
               value: c.name,
               label: c.name,
@@ -389,10 +411,14 @@ export default function TransactionsPage() {
                 body: JSON.stringify({ name, type }),
               }).then((r) => r.json());
               setCategory(created.name);
+              setCategoryAutoFilled(false);
               loadCategories();
             }}
             style={{ width: 180 }}
           />
+          {categoryAutoFilled && (
+            <div style={{ fontSize: 10.5, color: "#B0A88E", marginTop: 2 }}>usual account for this vendor</div>
+          )}
         </div>
         <div>
           <Autocomplete
