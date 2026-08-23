@@ -97,6 +97,7 @@ export default function TransactionsPage() {
   const [baseCurrency, setBaseCurrency] = useState("USD");
   const [entryCurrency, setEntryCurrency] = useState("USD");
   const [converting, setConverting] = useState(false);
+  const [addError, setAddError] = useState("");
 
   // filters
   const [fCategory, setFCategory] = useState("");
@@ -181,11 +182,23 @@ export default function TransactionsPage() {
   const itemsTotal = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0), 0);
 
   const add = async () => {
+    setAddError("");
     const amt = parseFloat(amount);
-    if (!amt || !category) return;
+    if (!amt) { setAddError("Enter an amount first."); return; }
+    if (!category) {
+      setAddError(
+        catsForType.length === 0
+          ? `You don't have any ${type} accounts yet — type a name in the account field above and tap "+ Add" to create one.`
+          : "Choose an account."
+      );
+      return;
+    }
 
     const splitAmt2 = splitEnabled ? parseFloat(splitAmount2) : 0;
-    if (splitEnabled && (!splitCategory2 || !splitAmt2 || splitAmt2 >= amt)) return;
+    if (splitEnabled && (!splitCategory2 || !splitAmt2 || splitAmt2 >= amt)) {
+      setAddError("Fix the split amounts before adding — the second account's amount must be less than the total.");
+      return;
+    }
 
     let rate = 1;
     let currencyCode: string | null = null;
@@ -252,7 +265,7 @@ export default function TransactionsPage() {
 
     setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
     setSplitEnabled(false); setSplitCategory2(""); setSplitAmount2("");
-    setCategoryAutoFilled(false);
+    setCategoryAutoFilled(false); setAddError("");
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
     setItems([]); setShowItems(false);
     setPaymentMethod("cash"); setPayCardId(""); setPayBankAccountId(""); setPayCheckNumber(""); setPaymentOther("");
@@ -512,6 +525,9 @@ export default function TransactionsPage() {
           </label>
         </div>
         <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       {showItems && (
