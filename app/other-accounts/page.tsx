@@ -13,6 +13,7 @@ export default function OtherAccountsPage() {
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
   const [parentId, setParentId] = useState("");
+  const [addError, setAddError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editKind, setEditKind] = useState("liability");
@@ -24,7 +25,9 @@ export default function OtherAccountsPage() {
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!name.trim() || !value) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter a name first."); return; }
+    if (!value.trim()) { setAddError("Enter a value or amount owed."); return; }
     await fetch("/api/other-accounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +118,9 @@ export default function OtherAccountsPage() {
         <input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Value / amount owed" style={{ width: 150 }} />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" style={{ flex: 1, minWidth: 140 }} />
         <button className="btn" onClick={add}>Add</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       {accounts.length > 0 && (
