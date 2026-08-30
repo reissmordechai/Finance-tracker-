@@ -15,6 +15,7 @@ export default function HoldingsAccountsPage() {
   const [benchmark, setBenchmark] = useState<number | null>(null);
   const [charityEligible, setCharityEligible] = useState<null | boolean>(null);
   const [charityPct, setCharityPct] = useState("10");
+  const [addError, setAddError] = useState("");
 
   const load = () => fetch("/api/holdings").then((r) => r.json()).then(setHoldings);
   useEffect(() => {
@@ -46,8 +47,10 @@ export default function HoldingsAccountsPage() {
   const charityAmount = (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
 
   const add = async () => {
+    setAddError("");
     const amt = parseFloat(amount);
-    if (!name.trim() || !amt) return;
+    if (!name.trim()) { setAddError("Enter a name."); return; }
+    if (!amt) { setAddError("Enter an amount."); return; }
     await fetch("/api/holdings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,6 +115,9 @@ export default function HoldingsAccountsPage() {
               {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <button className="btn" onClick={add}>Save</button>
+            {addError && (
+              <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+            )}
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: charityEligible ? 8 : 0 }}>Does this deposit count toward charity?</div>

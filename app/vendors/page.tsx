@@ -8,12 +8,14 @@ export default function VendorsPage() {
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [addError, setAddError] = useState("");
 
   const load = () => fetch("/api/vendors").then((r) => r.json()).then(setVendors);
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!name.trim()) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter a vendor name."); return; }
     await fetch("/api/vendors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,6 +51,9 @@ export default function VendorsPage() {
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Trader Joe's" style={{ flex: 1 }} onKeyDown={(e) => e.key === "Enter" && add()} />
         <button className="btn" onClick={add}>Add vendor</button>
       </div>
+      {addError && (
+        <div style={{ marginTop: -8, marginBottom: 16, fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+      )}
 
       <div className="card" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {vendors.map((v) => (

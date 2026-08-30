@@ -13,6 +13,8 @@ export default function CharityPage() {
   const [showGive, setShowGive] = useState(false);
   const [showOwed, setShowOwed] = useState(false);
   const [summaryYear, setSummaryYear] = useState(String(new Date().getFullYear()));
+  const [giveError, setGiveError] = useState("");
+  const [owedError, setOwedError] = useState("");
 
   const load = () => fetch("/api/charity").then((r) => r.json()).then(setEntries);
   useEffect(() => { load(); }, []);
@@ -39,8 +41,9 @@ export default function CharityPage() {
   };
 
   const recordGift = async () => {
+    setGiveError("");
     const amt = parseFloat(giveAmount);
-    if (!amt) return;
+    if (!amt) { setGiveError("Enter an amount."); return; }
     await fetch("/api/charity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -51,8 +54,9 @@ export default function CharityPage() {
   };
 
   const recordObligation = async () => {
+    setOwedError("");
     const amt = parseFloat(owedAmount);
-    if (!amt) return;
+    if (!amt) { setOwedError("Enter an amount."); return; }
     await fetch("/api/charity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -109,6 +113,9 @@ export default function CharityPage() {
             </select>
             <input value={giveNote} onChange={(e) => setGiveNote(e.target.value)} placeholder="Note (optional)" style={{ flex: 1, minWidth: 140 }} />
             <button className="btn" onClick={recordGift}>Save</button>
+            {giveError && (
+              <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{giveError}</div>
+            )}
           </div>
         )}
         {showOwed && (
@@ -116,6 +123,9 @@ export default function CharityPage() {
             <input type="number" step="0.01" value={owedAmount} onChange={(e) => setOwedAmount(e.target.value)} placeholder="Amount to set aside" style={{ width: 160 }} />
             <input value={owedNote} onChange={(e) => setOwedNote(e.target.value)} placeholder="Note (optional)" style={{ flex: 1, minWidth: 140 }} />
             <button className="btn" onClick={recordObligation}>Save</button>
+            {owedError && (
+              <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{owedError}</div>
+            )}
           </div>
         )}
       </div>

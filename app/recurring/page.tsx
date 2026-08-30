@@ -36,6 +36,8 @@ export default function RecurringPage() {
   const [reviewAmount, setReviewAmount] = useState("");
   const [currencyCode, setCurrencyCode] = useState("USD");
   const [baseCurrency, setBaseCurrency] = useState("USD");
+  const [addError, setAddError] = useState("");
+  const [reviewError, setReviewError] = useState("");
 
   const load = () => fetch("/api/recurring").then((r) => r.json()).then(setRules);
   useEffect(() => {
@@ -51,9 +53,11 @@ export default function RecurringPage() {
   const lastTxnFor = (ruleId: string) => txns.filter((t) => t.recurringId === ruleId).sort((a, b) => b.date.localeCompare(a.date))[0];
 
   const saveReview = async (rule: any) => {
+    setReviewError("");
     const txn = lastTxnFor(rule.id);
     const newAmt = parseFloat(reviewAmount);
-    if (!txn || !newAmt) return;
+    if (!txn) { setReviewError("No matching transaction found to update."); return; }
+    if (!newAmt) { setReviewError("Enter an amount."); return; }
     await fetch(`/api/transactions/${txn.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -74,9 +78,14 @@ export default function RecurringPage() {
   };
 
   const add = async () => {
+    setAddError("");
     if (postTo === "holding") {
-      if (!holdingId || !amount) return;
-    } else if (!category.trim() || !amount) return;
+      if (!holdingId) { setAddError("Choose a holding."); return; }
+      if (!amount) { setAddError("Enter an amount."); return; }
+    } else {
+      if (!category.trim()) { setAddError("Enter a category."); return; }
+      if (!amount) { setAddError("Enter an amount."); return; }
+    }
     await fetch("/api/recurring", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -152,6 +161,9 @@ export default function RecurringPage() {
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150, display: "block" }} />
         </div>
         <button className="btn" onClick={add} style={{ alignSelf: "flex-end" }}>Save</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
@@ -195,6 +207,9 @@ export default function RecurringPage() {
                     <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <input type="number" step="0.01" value={reviewAmount} onChange={(e) => setReviewAmount(e.target.value)} style={{ width: 110 }} />
                       <button className="btn" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => saveReview(r)}>Fix that transaction</button>
+                      {reviewError && (
+                        <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{reviewError}</div>
+                      )}
                       {Math.abs((parseFloat(reviewAmount) - r.amount) / r.amount) * 100 >= 10 && (
                         <button className="btn-outline" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => applyToRule(r)}>Also update rule to ${parseFloat(reviewAmount || "0").toFixed(2)}</button>
                       )}

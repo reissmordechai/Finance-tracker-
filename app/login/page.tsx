@@ -11,9 +11,10 @@ export default function LoginPage() {
   const router = useRouter();
 
   const submit = async () => {
-    if (!email || !password) return;
-    setLoading(true);
     setError("");
+    if (!email) { setError("Enter your email."); return; }
+    if (!password) { setError("Enter your password."); return; }
+    setLoading(true);
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

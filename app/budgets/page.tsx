@@ -17,6 +17,7 @@ export default function BudgetsPage() {
   const [rollover, setRollover] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLimit, setEditLimit] = useState("");
+  const [addError, setAddError] = useState("");
 
   const load = () => {
     fetch("/api/budgets").then((r) => r.json()).then(setBudgets);
@@ -29,7 +30,9 @@ export default function BudgetsPage() {
       .reduce((s: number, t: any) => s + t.amount, 0);
 
   const add = async () => {
-    if (!category.trim() || !limit) return;
+    setAddError("");
+    if (!category.trim()) { setAddError("Enter a category."); return; }
+    if (!limit) { setAddError("Enter a limit."); return; }
     await fetch("/api/budgets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,6 +67,9 @@ export default function BudgetsPage() {
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Account, e.g. Groceries" style={{ flex: 2, minWidth: 160 }} />
           <input type="number" value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="Monthly limit" style={{ width: 140 }} />
           <button className="btn" onClick={add}>Set budget</button>
+          {addError && (
+            <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+          )}
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 13, cursor: "pointer" }}>
           <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} style={{ width: "auto" }} />

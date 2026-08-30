@@ -49,6 +49,8 @@ export default function CardsPage() {
   const [editAutoPayDay, setEditAutoPayDay] = useState("");
   const [editAutoPayAccountId, setEditAutoPayAccountId] = useState("");
   const [editAutoPayType, setEditAutoPayType] = useState("statement");
+  const [addError, setAddError] = useState("");
+  const [payError, setPayError] = useState("");
 
   const load = () => {
     fetch("/api/cards").then((r) => r.json()).then(setCards);
@@ -61,7 +63,8 @@ export default function CardsPage() {
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!name.trim()) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter a card name."); return; }
     await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,8 +85,9 @@ export default function CardsPage() {
   };
 
   const pay = async (id: string) => {
+    setPayError("");
     const amt = parseFloat(payAmount);
-    if (!amt) return;
+    if (!amt) { setPayError("Enter a payment amount."); return; }
     await fetch(`/api/cards/${id}/pay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -153,6 +157,9 @@ export default function CardsPage() {
         </div>
         <input type="number" step="0.1" value={apr} onChange={(e) => setApr(e.target.value)} placeholder="APR % (optional)" style={{ width: 130 }} />
         <button className="btn" onClick={add} style={{ alignSelf: "flex-end" }}>Add card</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -300,6 +307,9 @@ export default function CardsPage() {
                     {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                   <button className="btn" onClick={() => pay(c.id)}>Record payment</button>
+                  {payError && (
+                    <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{payError}</div>
+                  )}
                 </div>
               )}
               {plannerId === c.id && (

@@ -12,12 +12,16 @@ export default function GoalsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [addError, setAddError] = useState("");
+  const [fundError, setFundError] = useState("");
 
   const load = () => fetch("/api/goals").then((r) => r.json()).then(setGoals);
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!name.trim() || !target) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter a goal name."); return; }
+    if (!target) { setAddError("Enter a target amount."); return; }
     await fetch("/api/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,8 +37,9 @@ export default function GoalsPage() {
   };
 
   const addFunds = async (id: string) => {
+    setFundError("");
     const amt = parseFloat(fundAmount);
-    if (!amt) return;
+    if (!amt) { setFundError("Enter an amount."); return; }
     await fetch(`/api/goals/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -67,6 +72,9 @@ export default function GoalsPage() {
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Goal name" style={{ flex: 2, minWidth: 160 }} />
         <input type="number" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Target amount" style={{ width: 140 }} />
         <button className="btn" onClick={add}>New goal</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
@@ -111,6 +119,9 @@ export default function GoalsPage() {
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                   <input type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Amount" style={{ width: 120 }} />
                   <button className="btn" onClick={() => addFunds(g.id)}>Add</button>
+                  {fundError && (
+                    <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{fundError}</div>
+                  )}
                 </div>
               )}
               {editingId === g.id && (

@@ -13,9 +13,11 @@ export default function SignupPage() {
   const router = useRouter();
 
   const submit = async () => {
-    if (!name || !email || !password) return;
-    setLoading(true);
     setError("");
+    if (!name) { setError("Enter your name."); return; }
+    if (!email) { setError("Enter your email."); return; }
+    if (!password) { setError("Enter a password."); return; }
+    setLoading(true);
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

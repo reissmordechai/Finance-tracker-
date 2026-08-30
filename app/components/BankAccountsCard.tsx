@@ -32,6 +32,8 @@ export default function BankAccountsCard() {
   const [toId, setToId] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [transferring, setTransferring] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [transferError, setTransferError] = useState("");
   const [convertedTotal, setConvertedTotal] = useState<number | null>(null);
 
   const load = () => {
@@ -97,7 +99,8 @@ export default function BankAccountsCard() {
     load();
   };
   const addAccount = async () => {
-    if (!newName.trim()) return;
+    setAddError("");
+    if (!newName.trim()) { setAddError("Enter an account name."); return; }
     await fetch("/api/bankaccounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,8 +111,11 @@ export default function BankAccountsCard() {
   };
 
   const doTransfer = async () => {
+    setTransferError("");
     const amt = parseFloat(transferAmount);
-    if (!fromId || !toId || fromId === toId || !amt) return;
+    if (!fromId || !toId) { setTransferError("Choose both accounts."); return; }
+    if (fromId === toId) { setTransferError("Choose two different accounts."); return; }
+    if (!amt) { setTransferError("Enter an amount."); return; }
     setTransferring(true);
     await fetch("/api/transfers", {
       method: "POST",
@@ -144,6 +150,9 @@ export default function BankAccountsCard() {
             {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="btn" onClick={addAccount}>Save</button>
+          {addError && (
+            <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+          )}
         </div>
       )}
 
@@ -160,6 +169,9 @@ export default function BankAccountsCard() {
           </select>
           <input type="number" step="0.01" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
           <button className="btn" onClick={doTransfer} disabled={transferring}>{transferring ? "…" : "Transfer"}</button>
+          {transferError && (
+            <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{transferError}</div>
+          )}
         </div>
       )}
 

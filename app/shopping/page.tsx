@@ -8,6 +8,7 @@ export default function ShoppingPage() {
   const [note, setNote] = useState("");
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
+  const [addError, setAddError] = useState("");
 
   const load = () => fetch("/api/shopping").then((r) => r.json()).then(setItems);
   useEffect(() => {
@@ -16,7 +17,8 @@ export default function ShoppingPage() {
   }, []);
 
   const add = async () => {
-    if (!name.trim()) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter an item name."); return; }
     await fetch("/api/shopping", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,6 +62,9 @@ export default function ShoppingPage() {
           </select>
         )}
         <button className="btn" onClick={add}>Add</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       <div className="card" style={{ padding: 0, marginBottom: unchecked.length === 0 ? 0 : 16 }}>

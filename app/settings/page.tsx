@@ -29,6 +29,8 @@ export default function SettingsPage() {
   const [charityDefaultPct, setCharityDefaultPct] = useState("10");
   const [savedMsg, setSavedMsg] = useState(false);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [addAcctError, setAddAcctError] = useState("");
+  const [addProfileError, setAddProfileError] = useState("");
 
   const load = () => fetch("/api/settings/taxprofiles").then((r) => r.json()).then(setProfiles);
   const loadAccounts = () => fetch("/api/categories").then((r) => r.json()).then(setAccounts);
@@ -49,8 +51,9 @@ export default function SettingsPage() {
   const daysSinceBackup = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000) : 0;
 
   const addAccount = async () => {
+    setAddAcctError("");
     const name = newAcctName.trim();
-    if (!name) return;
+    if (!name) { setAddAcctError("Enter a category name."); return; }
     await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -81,7 +84,9 @@ export default function SettingsPage() {
   };
 
   const addProfile = async () => {
-    if (!label.trim() || !rate) return;
+    setAddProfileError("");
+    if (!label.trim()) { setAddProfileError("Enter a label."); return; }
+    if (!rate) { setAddProfileError("Enter a rate."); return; }
     await fetch("/api/settings/taxprofiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -223,6 +228,9 @@ export default function SettingsPage() {
             </>
           )}
           <button className="btn" onClick={addAccount}>Add</button>
+          {addAcctError && (
+            <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addAcctError}</div>
+          )}
         </div>
         {acctTab === "expense" && otherAccounts.filter((a) => a.kind === "liability" || a.kind === "asset").length === 0 && (
           <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 6 }}>
@@ -243,6 +251,9 @@ export default function SettingsPage() {
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label, e.g. NY" style={{ flex: 1, minWidth: 140 }} />
           <input type="number" step="0.001" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Rate %" style={{ width: 110 }} />
           <button className="btn" onClick={addProfile}>Add</button>
+          {addProfileError && (
+            <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addProfileError}</div>
+          )}
         </div>
         {profiles.map((p) => (
           editingProfileId === p.id ? (

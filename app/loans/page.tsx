@@ -35,12 +35,15 @@ export default function LoansPage() {
   const [editApr, setEditApr] = useState("");
   const [editMinPayment, setEditMinPayment] = useState("");
   const [editDueDay, setEditDueDay] = useState("");
+  const [addError, setAddError] = useState("");
 
   const load = () => fetch("/api/loans").then((r) => r.json()).then(setLoans);
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!name.trim() || !balance) return;
+    setAddError("");
+    if (!name.trim()) { setAddError("Enter a loan name."); return; }
+    if (!balance) { setAddError("Enter a current balance."); return; }
     await fetch("/api/loans", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -100,6 +103,9 @@ export default function LoansPage() {
         <input type="number" value={minPayment} onChange={(e) => setMinPayment(e.target.value)} placeholder="Min payment (optional)" style={{ width: 150 }} />
         <input type="number" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="Due day (optional)" style={{ width: 130 }} />
         <button className="btn" onClick={add}>Add loan</button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
