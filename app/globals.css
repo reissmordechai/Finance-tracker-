@@ -187,6 +187,10 @@ input::placeholder { color: #B0A88E; }
   padding: 6px;
   z-index: 30;
 }
+.app-nav-dropdown-portal {
+  position: fixed;
+  z-index: 1000;
+}
 .app-nav-dropdown a {
   padding: 9px 12px;
   border-radius: 7px;

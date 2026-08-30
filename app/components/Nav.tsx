@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ThemeToggle from "./ThemeToggle";
 
 const primaryLinks = [
@@ -52,11 +53,19 @@ export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenGroup(null);
+      const target = e.target as Node;
+      const insideNav = navRef.current && navRef.current.contains(target);
+      const insideDropdown = (target as HTMLElement).closest?.(".app-nav-dropdown");
+      if (!insideNav && !insideDropdown) setOpenGroup(null);
     };
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
@@ -76,6 +85,18 @@ export default function Nav() {
     pathname === href || (href === "/holdings" && pathname?.startsWith("/holdings"));
 
   const groupIsActive = (g: typeof groups[number]) => g.links.some((l) => isActive(l.href));
+
+  const toggleGroup = (label: string) => {
+    if (openGroup === label) { setOpenGroup(null); return; }
+    const btn = btnRefs.current[label];
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpenGroup(label);
+  };
+
+  const activeGroup = groups.find((g) => g.label === openGroup);
 
   return (
     <header className="app-header">
@@ -100,22 +121,14 @@ export default function Nav() {
           {groups.map((g) => (
             <div key={g.label} className="app-nav-group">
               <button
+                ref={(el) => { btnRefs.current[g.label] = el; }}
                 type="button"
                 className={"app-nav-group-btn" + (groupIsActive(g) ? " active" : "")}
-                onClick={(e) => { e.stopPropagation(); setOpenGroup(openGroup === g.label ? null : g.label); }}
+                onClick={(e) => { e.stopPropagation(); toggleGroup(g.label); }}
               >
                 {g.label}
                 <span className="app-nav-caret">{openGroup === g.label ? "▴" : "▾"}</span>
               </button>
-              {openGroup === g.label && (
-                <div className="app-nav-dropdown">
-                  {g.links.map((l) => (
-                    <Link key={l.href} href={l.href} className={isActive(l.href) ? "active" : ""}>
-                      {l.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
             </div>
           ))}
 
@@ -128,6 +141,21 @@ export default function Nav() {
           ))}
         </nav>
       </div>
+
+      {mounted && activeGroup && dropdownPos && createPortal(
+        <div
+          className="app-nav-dropdown app-nav-dropdown-portal"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {activeGroup.links.map((l) => (
+            <Link key={l.href} href={l.href} className={isActive(l.href) ? "active" : ""} onClick={() => setOpenGroup(null)}>
+              {l.label}
+            </Link>
+          ))}
+        </div>,
+        document.body
+      )}
     </header>
   );
 }
