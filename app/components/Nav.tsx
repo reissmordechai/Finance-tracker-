@@ -1,27 +1,49 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 
-const links = [
+const primaryLinks = [
   { href: "/", label: "Home" },
-  { href: "/forecast", label: "Forecast" },
-  { href: "/whatif", label: "What If" },
   { href: "/transactions", label: "Transactions" },
-  { href: "/cards", label: "Cards" },
-  { href: "/loans", label: "Loans" },
-  { href: "/other-accounts", label: "Accounts" },
-  { href: "/holdings", label: "Holdings" },
-  { href: "/market", label: "Market" },
-  { href: "/charity", label: "Charity" },
-  { href: "/budgets", label: "Budgets" },
-  { href: "/goals", label: "Goals" },
-  { href: "/recurring", label: "Recurring" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/shopping", label: "Shopping" },
-  { href: "/reports", label: "Reports" },
-  { href: "/calculator", label: "Calculator" },
-  { href: "/search", label: "Search" },
+];
+
+const groups = [
+  {
+    label: "Money",
+    links: [
+      { href: "/cards", label: "Cards" },
+      { href: "/loans", label: "Loans" },
+      { href: "/other-accounts", label: "Accounts" },
+      { href: "/holdings", label: "Holdings" },
+      { href: "/market", label: "Market" },
+    ],
+  },
+  {
+    label: "Planning",
+    links: [
+      { href: "/forecast", label: "Forecast" },
+      { href: "/whatif", label: "What If" },
+      { href: "/budgets", label: "Budgets" },
+      { href: "/goals", label: "Goals" },
+      { href: "/recurring", label: "Recurring" },
+      { href: "/charity", label: "Charity" },
+    ],
+  },
+  {
+    label: "Tools",
+    links: [
+      { href: "/vendors", label: "Vendors" },
+      { href: "/shopping", label: "Shopping" },
+      { href: "/reports", label: "Reports" },
+      { href: "/calculator", label: "Calculator" },
+      { href: "/search", label: "Search" },
+    ],
+  },
+];
+
+const tailLinks = [
   { href: "/settings", label: "Settings" },
   { href: "/admin", label: "Admin" },
 ];
@@ -29,6 +51,19 @@ const links = [
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenGroup(null);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+
+  useEffect(() => { setOpenGroup(null); }, [pathname]);
+
   if (pathname === "/login" || pathname === "/signup" || pathname === "/summary") return null;
 
   const logout = async () => {
@@ -36,6 +71,11 @@ export default function Nav() {
     router.push("/login");
     router.refresh();
   };
+
+  const isActive = (href: string) =>
+    pathname === href || (href === "/holdings" && pathname?.startsWith("/holdings"));
+
+  const groupIsActive = (g: typeof groups[number]) => g.links.some((l) => isActive(l.href));
 
   return (
     <header className="app-header">
@@ -50,15 +90,42 @@ export default function Nav() {
             }}>Log out</button>
           </div>
         </div>
-        <nav className="app-nav">
-          {links.map((l) => {
-            const active = pathname === l.href || (l.href === "/holdings" && pathname?.startsWith("/holdings"));
-            return (
-              <Link key={l.href} href={l.href} className={active ? "active" : ""}>
-                {l.label}
-              </Link>
-            );
-          })}
+        <nav className="app-nav" ref={navRef}>
+          {primaryLinks.map((l) => (
+            <Link key={l.href} href={l.href} className={isActive(l.href) ? "active" : ""}>
+              {l.label}
+            </Link>
+          ))}
+
+          {groups.map((g) => (
+            <div key={g.label} className="app-nav-group">
+              <button
+                type="button"
+                className={"app-nav-group-btn" + (groupIsActive(g) ? " active" : "")}
+                onClick={(e) => { e.stopPropagation(); setOpenGroup(openGroup === g.label ? null : g.label); }}
+              >
+                {g.label}
+                <span className="app-nav-caret">{openGroup === g.label ? "▴" : "▾"}</span>
+              </button>
+              {openGroup === g.label && (
+                <div className="app-nav-dropdown">
+                  {g.links.map((l) => (
+                    <Link key={l.href} href={l.href} className={isActive(l.href) ? "active" : ""}>
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <span className="app-nav-spacer" />
+
+          {tailLinks.map((l) => (
+            <Link key={l.href} href={l.href} className={isActive(l.href) ? "active" : ""}>
+              {l.label}
+            </Link>
+          ))}
         </nav>
       </div>
     </header>

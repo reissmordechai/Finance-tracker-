@@ -28,11 +28,16 @@ export default function OtherAccountsPage() {
     setAddError("");
     if (!name.trim()) { setAddError("Enter a name first."); return; }
     if (!value.trim()) { setAddError("Enter a value or amount owed."); return; }
-    await fetch("/api/other-accounts", {
+    const res = await fetch("/api/other-accounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, kind, value: parseFloat(value) || 0, note: note || null, parentId: parentId || null }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setAddError(data.error || "Something went wrong saving this account. Please try again.");
+      return;
+    }
     setName(""); setValue(""); setNote(""); setParentId("");
     load();
   };
