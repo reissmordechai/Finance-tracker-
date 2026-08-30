@@ -14,6 +14,29 @@ export default function MarketPage() {
   const [range, setRange] = useState<"1M" | "6M" | "1Y">("1M");
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  const currencyOptions = ["USD", "EUR", "GBP", "ILS", "CAD"];
+  const [fxFrom, setFxFrom] = useState("USD");
+  const [fxTo, setFxTo] = useState("ILS");
+  const [fxAmount, setFxAmount] = useState("1");
+  const [fxRate, setFxRate] = useState<number | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxError, setFxError] = useState("");
+
+  const checkRate = async () => {
+    setFxError(""); setFxRate(null);
+    if (fxFrom === fxTo) { setFxRate(1); return; }
+    setFxLoading(true);
+    try {
+      const res = await fetch(`/api/currency?from=${fxFrom}&to=${fxTo}`);
+      const data = await res.json();
+      if (data.rate) setFxRate(data.rate);
+      else setFxError("Rate unavailable right now — try again shortly.");
+    } catch {
+      setFxError("Rate unavailable right now — try again shortly.");
+    }
+    setFxLoading(false);
+  };
+
   const search = async () => {
     if (!q.trim()) return;
     setSearching(true);
@@ -49,6 +72,28 @@ export default function MarketPage() {
       <p style={{ fontSize: 13, color: "#5B5540", marginTop: -8 }}>
         Look up any stock — price, recent performance, and headlines. Uses your free Alpha Vantage key, which has a daily limit, so search deliberately.
       </p>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Exchange rates</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <input type="number" step="0.01" value={fxAmount} onChange={(e) => setFxAmount(e.target.value)} style={{ width: 100 }} />
+          <select value={fxFrom} onChange={(e) => { setFxFrom(e.target.value); setFxRate(null); }} style={{ width: 90 }}>
+            {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <span style={{ color: "#8A8370" }}>&rarr;</span>
+          <select value={fxTo} onChange={(e) => { setFxTo(e.target.value); setFxRate(null); }} style={{ width: 90 }}>
+            {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button className="btn" onClick={checkRate}>{fxLoading ? "…" : "Check rate"}</button>
+        </div>
+        {fxRate !== null && (
+          <div style={{ marginTop: 10, fontSize: 15 }}>
+            <span className="num" style={{ fontWeight: 700 }}>{((parseFloat(fxAmount) || 0) * fxRate).toFixed(2)} {fxTo}</span>
+            <span style={{ color: "#8A8370" }}> — 1 {fxFrom} = <span className="num">{fxRate.toFixed(4)}</span> {fxTo}, updated just now</span>
+          </div>
+        )}
+        {fxError && <div style={{ marginTop: 8, fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{fxError}</div>}
+      </div>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} placeholder="Search a company or symbol, e.g. Apple or AAPL" style={{ flex: 1 }} />
