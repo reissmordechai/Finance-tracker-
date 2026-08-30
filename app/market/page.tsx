@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LineChart from "../components/LineChart";
 
 export default function MarketPage() {
@@ -36,6 +36,11 @@ export default function MarketPage() {
     }
     setFxLoading(false);
   };
+
+  useEffect(() => {
+    checkRate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fxFrom, fxTo]);
 
   const search = async () => {
     if (!q.trim()) return;
@@ -76,20 +81,20 @@ export default function MarketPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 10 }}>Exchange rates</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <input type="number" step="0.01" value={fxAmount} onChange={(e) => setFxAmount(e.target.value)} style={{ width: 100 }} />
-          <select value={fxFrom} onChange={(e) => { setFxFrom(e.target.value); setFxRate(null); }} style={{ width: 90 }}>
+          <input type="number" step="0.01" value={fxAmount} onChange={(e) => setFxAmount(e.target.value)} style={{ width: 120 }} />
+          <select value={fxFrom} onChange={(e) => setFxFrom(e.target.value)} style={{ width: 90 }}>
             {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <span style={{ color: "#8A8370" }}>&rarr;</span>
-          <select value={fxTo} onChange={(e) => { setFxTo(e.target.value); setFxRate(null); }} style={{ width: 90 }}>
+          <select value={fxTo} onChange={(e) => setFxTo(e.target.value)} style={{ width: 90 }}>
             {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button className="btn" onClick={checkRate}>{fxLoading ? "…" : "Check rate"}</button>
+          {fxLoading && <span style={{ color: "#8A8370", fontSize: 13 }}>Updating…</span>}
         </div>
-        {fxRate !== null && (
-          <div style={{ marginTop: 10, fontSize: 15 }}>
-            <span className="num" style={{ fontWeight: 700 }}>{((parseFloat(fxAmount) || 0) * fxRate).toFixed(2)} {fxTo}</span>
-            <span style={{ color: "#8A8370" }}> — 1 {fxFrom} = <span className="num">{fxRate.toFixed(4)}</span> {fxTo}, updated just now</span>
+        {fxRate !== null && !fxLoading && (
+          <div style={{ marginTop: 10, fontSize: 20 }}>
+            <span className="num" style={{ fontWeight: 700, color: "#0F3D2E" }}>{((parseFloat(fxAmount) || 0) * fxRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fxTo}</span>
+            <div style={{ fontSize: 12.5, color: "#8A8370", marginTop: 2 }}>1 {fxFrom} = <span className="num">{fxRate.toFixed(4)}</span> {fxTo} · updated just now</div>
           </div>
         )}
         {fxError && <div style={{ marginTop: 8, fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{fxError}</div>}
