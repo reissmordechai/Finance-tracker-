@@ -6,10 +6,14 @@ export default function ReportsPage() {
   const [txns, setTxns] = useState<any[]>([]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [trendCategory, setTrendCategory] = useState("");
+  const [boughtForFilter, setBoughtForFilter] = useState("");
 
   useEffect(() => { fetch("/api/transactions").then((r) => r.json()).then(setTxns); }, []);
 
-  const monthTxns = txns.filter((t) => t.date.slice(0, 7) === month);
+  const boughtForOptions = Array.from(new Set(txns.map((t) => t.boughtFor).filter(Boolean))).sort();
+  const scopedTxns = boughtForFilter ? txns.filter((t) => t.boughtFor === boughtForFilter) : txns;
+
+  const monthTxns = scopedTxns.filter((t) => t.date.slice(0, 7) === month);
   const income = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
@@ -19,7 +23,7 @@ export default function ReportsPage() {
   });
   const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
 
-  const categories = Array.from(new Set(txns.map((t) => t.category))).sort();
+  const categories = Array.from(new Set(scopedTxns.map((t) => t.category))).sort();
   const activeTrendCategory = trendCategory || sorted[0]?.[0] || categories[0] || "";
 
   // Last 6 months trend for the selected account
@@ -30,7 +34,7 @@ export default function ReportsPage() {
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
   const trendBars = months.map((ym) => {
-    const total = txns.filter((t) => t.type === "expense" && t.category === activeTrendCategory && t.date.slice(0, 7) === ym)
+    const total = scopedTxns.filter((t) => t.type === "expense" && t.category === activeTrendCategory && t.date.slice(0, 7) === ym)
       .reduce((s, t) => s + t.amount, 0);
     const [y, m] = ym.split("-");
     const label = new Date(Number(y), Number(m) - 1, 1).toLocaleString("default", { month: "short" });
@@ -41,8 +45,14 @@ export default function ReportsPage() {
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Reports</h1>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        {boughtForOptions.length > 0 && (
+          <select value={boughtForFilter} onChange={(e) => setBoughtForFilter(e.target.value)} style={{ width: 170 }}>
+            <option value="">All (bought for anyone)</option>
+            {boughtForOptions.map((b) => <option key={b} value={b}>Bought for {b}</option>)}
+          </select>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>

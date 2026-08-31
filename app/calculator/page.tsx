@@ -105,13 +105,14 @@ function Keypad() {
 
 function LedgerCalculator() {
   const [txns, setTxns] = useState<any[]>([]);
-  const [rows, setRows] = useState([{ id: 1, category: "", from: "", to: "" }]);
+  const [rows, setRows] = useState([{ id: 1, category: "", from: "", to: "", boughtFor: "" }]);
 
   useEffect(() => { fetch("/api/transactions").then((r) => r.json()).then(setTxns); }, []);
 
   const categories = Array.from(new Set(txns.map((t) => t.category))).sort();
+  const boughtForOptions = Array.from(new Set(txns.map((t) => t.boughtFor).filter(Boolean))).sort();
 
-  const addRow = () => setRows((prev) => [...prev, { id: Date.now(), category: "", from: "", to: "" }]);
+  const addRow = () => setRows((prev) => [...prev, { id: Date.now(), category: "", from: "", to: "", boughtFor: "" }]);
   const removeRow = (id: number) => setRows((prev) => prev.filter((r) => r.id !== id));
   const updateRow = (id: number, field: string, val: string) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
@@ -119,7 +120,7 @@ function LedgerCalculator() {
   const results = rows.map((r) => {
     if (!r.from || !r.category) return { ...r, total: 0, count: 0 };
     const to = r.to || r.from;
-    const matches = txns.filter((t) => t.category === r.category && t.date.slice(0, 10) >= r.from && t.date.slice(0, 10) <= to);
+    const matches = txns.filter((t) => t.category === r.category && t.date.slice(0, 10) >= r.from && t.date.slice(0, 10) <= to && (!r.boughtFor || t.boughtFor === r.boughtFor));
     return { ...r, total: matches.reduce((s, t) => s + t.amount, 0), count: matches.length };
   });
 
@@ -146,6 +147,15 @@ function LedgerCalculator() {
               <label style={{ fontSize: 11, color: "#8A8370" }}>To (optional)</label>
               <input type="date" value={r.to} onChange={(e) => updateRow(r.id, "to", e.target.value)} style={{ width: 145, display: "block" }} />
             </div>
+            {boughtForOptions.length > 0 && (
+              <div>
+                <label style={{ fontSize: 11, color: "#8A8370" }}>Bought for (optional)</label>
+                <select value={r.boughtFor} onChange={(e) => updateRow(r.id, "boughtFor", e.target.value)} style={{ width: 140, display: "block" }}>
+                  <option value="">Anyone</option>
+                  {boughtForOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ marginLeft: "auto", textAlign: "right" }}>
               <div style={{ fontSize: 11, color: "#8A8370" }}>Subtotal</div>
               <div className="num" style={{ fontWeight: 600 }}>${r.total.toFixed(2)}</div>

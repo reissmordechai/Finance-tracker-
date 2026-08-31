@@ -50,6 +50,7 @@ model Transaction {
   amount         Float
   note           String?
   vendor         String?
+  boughtFor      String?  // optional — who this purchase was for, e.g. "Wife", "Dan"
   paymentMethod  String   @default("cash") // "cash" | "debit" | "card" | "check" | "other"
   paymentOther   String?  // free-text description when paymentMethod = "other"
   cardId         String?

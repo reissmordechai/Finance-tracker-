@@ -56,6 +56,7 @@ export default function TransactionsPage() {
   const [tags, setTags] = useState("");
   const [vendors, setVendors] = useState<any[]>([]);
   const [vendor, setVendor] = useState("");
+  const [boughtFor, setBoughtFor] = useState("");
   const [categoryAutoFilled, setCategoryAutoFilled] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -66,6 +67,7 @@ export default function TransactionsPage() {
   const [editTxnAmount, setEditTxnAmount] = useState("");
   const [editTxnDate, setEditTxnDate] = useState("");
   const [editTxnVendor, setEditTxnVendor] = useState("");
+  const [editTxnBoughtFor, setEditTxnBoughtFor] = useState("");
   const [editTxnTags, setEditTxnTags] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
   const [editPayCardId, setEditPayCardId] = useState("");
@@ -220,7 +222,7 @@ export default function TransactionsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type, category, amount: finalAmount1, date, tags: tags || null, vendor: vendor || null, receiptImage,
+        type, category, amount: finalAmount1, date, tags: tags || null, vendor: vendor || null, boughtFor: boughtFor || null, receiptImage,
         currencyCode, originalAmount: currencyCode ? amt1 : null,
         paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
         bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
@@ -236,7 +238,7 @@ export default function TransactionsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type, category: splitCategory2, amount: finalAmount2, date, tags: tags || null, vendor: vendor || null,
+          type, category: splitCategory2, amount: finalAmount2, date, tags: tags || null, vendor: vendor || null, boughtFor: boughtFor || null,
           currencyCode, originalAmount: currencyCode ? splitAmt2 : null,
           paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
           bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
@@ -263,7 +265,7 @@ export default function TransactionsPage() {
       });
     }
 
-    setAmount(""); setTags(""); setVendor(""); setReceiptImage(null);
+    setAmount(""); setTags(""); setVendor(""); setBoughtFor(""); setReceiptImage(null);
     setSplitEnabled(false); setSplitCategory2(""); setSplitAmount2("");
     setCategoryAutoFilled(false); setAddError("");
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
@@ -284,6 +286,7 @@ export default function TransactionsPage() {
     setEditTxnAmount(String(t.amount));
     setEditTxnDate(t.date.slice(0, 10));
     setEditTxnVendor(t.vendor || "");
+    setEditTxnBoughtFor(t.boughtFor || "");
     setEditTxnTags(t.tags || "");
     setEditPaymentMethod(t.paymentMethod || "cash");
     setEditPayCardId(t.cardId || "");
@@ -301,6 +304,7 @@ export default function TransactionsPage() {
         amount: parseFloat(editTxnAmount) || 0,
         date: editTxnDate,
         vendor: editTxnVendor || null,
+        boughtFor: editTxnBoughtFor || null,
         tags: editTxnTags || null,
         paymentMethod: editPaymentMethod,
         cardId: editPaymentMethod === "card" ? editPayCardId || null : null,
@@ -451,6 +455,7 @@ export default function TransactionsPage() {
             style={{ width: 180 }}
           />
         </div>
+        <input value={boughtFor} onChange={(e) => setBoughtFor(e.target.value)} placeholder="Bought for (optional)" style={{ width: 150 }} />
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <select value={entryCurrency} onChange={(e) => setEntryCurrency(e.target.value)} style={{ width: 90 }}>
           {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
@@ -669,6 +674,7 @@ export default function TransactionsPage() {
                   placeholder="Vendor (optional)"
                   style={{ width: 160 }}
                 />
+                <input value={editTxnBoughtFor} onChange={(e) => setEditTxnBoughtFor(e.target.value)} placeholder="Bought for (optional)" style={{ width: 150 }} />
                 <input value={editTxnTags} onChange={(e) => setEditTxnTags(e.target.value)} placeholder="Tags (comma separated)" style={{ flex: 1, minWidth: 140 }} />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
@@ -715,7 +721,7 @@ export default function TransactionsPage() {
                 />
               )}
               <button onClick={() => startEditTxn(t)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
-                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}{t.splitGroupId && <span className="pill" style={{ marginLeft: 6 }}>split</span>}</div>
+                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.boughtFor && <span className="pill" style={{ marginLeft: 6 }}>for {t.boughtFor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}{t.splitGroupId && <span className="pill" style={{ marginLeft: 6 }}>split</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
                   {paymentLabel(t, cardsList, bankAccountsList) && (
