@@ -81,6 +81,7 @@ model Item {
   qty           Float
   unit          String
   unitPrice     Float
+  govCovered    Boolean     @default(false) // this specific item's worth was paid by the transaction's govProgram
 }
 
 model Card {

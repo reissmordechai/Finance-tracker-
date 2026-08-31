@@ -78,7 +78,7 @@ export default function TransactionsPage() {
   const [editPayCheckNumber, setEditPayCheckNumber] = useState("");
   const [editPaymentOther, setEditPaymentOther] = useState("");
   const [showItems, setShowItems] = useState(false);
-  const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string }[]>([]);
+  const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string; govCovered: boolean }[]>([]);
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [govProgramEnabled, setGovProgramEnabled] = useState(false);
   const [govProgramName, setGovProgramName] = useState("");
@@ -204,11 +204,12 @@ export default function TransactionsPage() {
 
   const charityAmount = charityOverrideAmount ? parseFloat(charityOverrideAmount) || 0 : (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
 
-  const addItemRow = () => setItems((prev) => [...prev, { id: crypto.randomUUID(), name: "", qty: "1", unit: "", unitPrice: "" }]);
-  const updateItemRow = (id: string, field: string, value: string) =>
+  const addItemRow = () => setItems((prev) => [...prev, { id: crypto.randomUUID(), name: "", qty: "1", unit: "", unitPrice: "", govCovered: false }]);
+  const updateItemRow = (id: string, field: string, value: string | boolean) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
   const removeItemRow = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
   const itemsTotal = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0), 0);
+  const itemsGovCoveredTotal = items.filter((it) => it.govCovered).reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0), 0);
 
   const add = async () => {
     setAddError("");
@@ -231,12 +232,22 @@ export default function TransactionsPage() {
 
     if (govProgramEnabled) {
       if (!govProgramName.trim()) { setAddError("Enter the program name."); return; }
-      if (!govProgramFull) {
+      if (items.length === 0 && !govProgramFull) {
         const gAmt = parseFloat(govProgramAmount);
         if (!gAmt || gAmt > amt) { setAddError("Enter a valid program amount — it can't be more than the total."); return; }
       }
+      if (items.length > 0 && !govProgramFull && itemsGovCoveredTotal === 0) {
+        setAddError("Check off which items were covered by the program, or choose \"Full purchase.\"");
+        return;
+      }
     }
-    const finalGovProgramAmount = govProgramEnabled ? (govProgramFull ? amt : parseFloat(govProgramAmount)) : null;
+    const finalGovProgramAmount = govProgramEnabled
+      ? (items.length > 0 ? (govProgramFull ? itemsTotal || amt : itemsGovCoveredTotal) : (govProgramFull ? amt : parseFloat(govProgramAmount)))
+      : null;
+    const itemsForSave = items.map((it) => ({
+      ...it,
+      govCovered: govProgramEnabled && (govProgramFull || it.govCovered),
+    }));
 
     let rate = 1;
     let currencyCode: string | null = null;
@@ -251,7 +262,7 @@ export default function TransactionsPage() {
     const finalAmount1 = Math.round(amt1 * rate * 100) / 100;
     const finalAmount2 = splitEnabled ? Math.round(splitAmt2 * rate * 100) / 100 : 0;
 
-    const validItems = items.filter((it) => it.name.trim() && parseFloat(it.qty) > 0);
+    const validItems = itemsForSave.filter((it) => it.name.trim() && parseFloat(it.qty) > 0);
     const splitGroupId = splitEnabled ? crypto.randomUUID() : null;
 
     const created = await fetch("/api/transactions", {
@@ -265,7 +276,7 @@ export default function TransactionsPage() {
         bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
         checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
         paymentOther: paymentMethod === "other" ? paymentOther || null : null,
-        items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0 })),
+        items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0, govCovered: it.govCovered })),
         splitGroupId, splitIndex: splitGroupId ? 0 : null, splitCount: splitGroupId ? 2 : null,
       }),
     }).then((r) => r.json());
@@ -593,6 +604,12 @@ export default function TransactionsPage() {
               <input value={it.unit} onChange={(e) => updateItemRow(it.id, "unit", e.target.value)} placeholder="unit" style={{ width: 70 }} />
               <input type="number" step="0.01" value={it.unitPrice} onChange={(e) => updateItemRow(it.id, "unitPrice", e.target.value)} placeholder="Price each" style={{ width: 100 }} />
               <span className="num" style={{ fontSize: 12, color: "#8A8370", width: 60 }}>${((parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0)).toFixed(2)}</span>
+              {govProgramEnabled && (
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#5B7B7A", cursor: "pointer" }}>
+                  <input type="checkbox" checked={it.govCovered} onChange={(e) => updateItemRow(it.id, "govCovered", e.target.checked)} style={{ width: "auto" }} />
+                  covered
+                </label>
+              )}
               <button onClick={() => removeItemRow(it.id)} style={{ border: "none", background: "none", color: "#B0A88E" }}>✕</button>
             </div>
           ))}
@@ -607,6 +624,11 @@ export default function TransactionsPage() {
               </span>
             )}
           </div>
+          {govProgramEnabled && items.length > 0 && (
+            <div style={{ fontSize: 12, color: "#5B7B7A", marginTop: 8 }}>
+              Checked items covered by the program: <span className="num" style={{ fontWeight: 600 }}>${itemsGovCoveredTotal.toFixed(2)}</span> of ${itemsTotal.toFixed(2)}
+            </div>
+          )}
         </div>
       )}
 
@@ -644,24 +666,32 @@ export default function TransactionsPage() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <input value={govProgramName} onChange={(e) => setGovProgramName(e.target.value)} placeholder="Program name, e.g. SNAP, WIC" style={{ width: 200 }} />
-            {!govProgramFull && (
+            {!govProgramFull && items.length === 0 && (
               <input type="number" step="0.01" value={govProgramAmount} onChange={(e) => setGovProgramAmount(e.target.value)} placeholder="Amount covered" style={{ width: 160 }} />
             )}
           </div>
-          {govProgramName && (
-            <div style={{ fontSize: 12, color: "#5B5540", marginTop: 8 }}>
-              {govProgramFull ? (
-                <>The full ${amount || "0.00"} was covered by <strong>{govProgramName}</strong>.</>
-              ) : govProgramAmount && amount ? (
-                parseFloat(govProgramAmount) > parseFloat(amount) ? (
-                  <span style={{ color: "#9C4221" }}>This can't be more than the total amount.</span>
-                ) : (
-                  <><strong>{govProgramName}</strong> covered <span className="num">${parseFloat(govProgramAmount).toFixed(2)}</span> of the ${amount} total — the rest was paid another way.</>
-                )
-              ) : (
-                <>Enter how much {govProgramName} covered.</>
-              )}
+          {items.length > 0 ? (
+            <div style={{ fontSize: 12, color: "#5B7B7A", marginTop: 8 }}>
+              {govProgramFull
+                ? "Full purchase selected — every item below will count as covered, regardless of the checkboxes."
+                : "Only part of it selected — check off which items above were covered by the program; the amount is added up from those."}
             </div>
+          ) : (
+            govProgramName && (
+              <div style={{ fontSize: 12, color: "#5B5540", marginTop: 8 }}>
+                {govProgramFull ? (
+                  <>The full ${amount || "0.00"} was covered by <strong>{govProgramName}</strong>.</>
+                ) : govProgramAmount && amount ? (
+                  parseFloat(govProgramAmount) > parseFloat(amount) ? (
+                    <span style={{ color: "#9C4221" }}>This can't be more than the total amount.</span>
+                  ) : (
+                    <><strong>{govProgramName}</strong> covered <span className="num">${parseFloat(govProgramAmount).toFixed(2)}</span> of the ${amount} total — the rest was paid another way.</>
+                  )
+                ) : (
+                  <>Enter how much {govProgramName} covered.</>
+                )}
+              </div>
+            )
           )}
         </div>
       )}
@@ -832,7 +862,7 @@ export default function TransactionsPage() {
                     <div style={{ marginTop: 4, paddingLeft: 8, borderLeft: "2px solid #EFEADC" }}>
                       {t.items.map((it: any) => (
                         <div key={it.id} style={{ fontSize: 11.5, color: "#5B5540", display: "flex", justifyContent: "space-between", maxWidth: 260 }}>
-                          <span>{it.qty} {it.unit} {it.name}</span>
+                          <span>{it.qty} {it.unit} {it.name}{it.govCovered && <span style={{ color: "#5B7B7A" }}> · covered</span>}</span>
                           <span className="num">${(it.qty * it.unitPrice).toFixed(2)}</span>
                         </div>
                       ))}
