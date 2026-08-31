@@ -6,6 +6,7 @@ import { useVoiceInput } from "../components/useVoiceInput";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 import ConfirmSaveButton from "../components/ConfirmSaveButton";
 import Autocomplete from "../components/Autocomplete";
+import { scanReceipt } from "@/lib/receiptOcr";
 
 function compressImage(file: File, maxDim = 900, quality = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -68,6 +69,8 @@ export default function TransactionsPage() {
   const [editTxnDate, setEditTxnDate] = useState("");
   const [editTxnVendor, setEditTxnVendor] = useState("");
   const [editTxnBoughtFor, setEditTxnBoughtFor] = useState("");
+  const [editTxnGovProgramName, setEditTxnGovProgramName] = useState("");
+  const [editTxnGovProgramAmount, setEditTxnGovProgramAmount] = useState("");
   const [editTxnTags, setEditTxnTags] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
   const [editPayCardId, setEditPayCardId] = useState("");
@@ -77,6 +80,10 @@ export default function TransactionsPage() {
   const [showItems, setShowItems] = useState(false);
   const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string }[]>([]);
   const [splitEnabled, setSplitEnabled] = useState(false);
+  const [govProgramEnabled, setGovProgramEnabled] = useState(false);
+  const [govProgramName, setGovProgramName] = useState("");
+  const [govProgramAmount, setGovProgramAmount] = useState("");
+  const [govProgramFull, setGovProgramFull] = useState(true);
   const [splitCategory2, setSplitCategory2] = useState("");
   const [splitAmount2, setSplitAmount2] = useState("");
   const [expandedItemsId, setExpandedItemsId] = useState<string | null>(null);
@@ -167,12 +174,32 @@ export default function TransactionsPage() {
     setCategoryAutoFilled(true);
   }, [vendor, type, txns]);
 
+  const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [receiptScanNote, setReceiptScanNote] = useState("");
+
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setReceiptScanNote("");
     try { setReceiptImage(await compressImage(file)); } catch {}
     setUploading(false);
+
+    setScanningReceipt(true);
+    try {
+      const guess = await scanReceipt(file);
+      const filledParts: string[] = [];
+      if (guess.amount && !amount) { setAmount(String(guess.amount)); filledParts.push(`amount $${guess.amount.toFixed(2)}`); }
+      if (guess.vendor && !vendor) { setVendor(guess.vendor); filledParts.push(`vendor "${guess.vendor}"`); }
+      setReceiptScanNote(
+        filledParts.length > 0
+          ? `Filled in ${filledParts.join(" and ")} from the receipt — please double-check before saving.`
+          : "Couldn't read this receipt clearly — please fill in the details manually."
+      );
+    } catch {
+      setReceiptScanNote("Couldn't scan this receipt — please fill in the details manually.");
+    }
+    setScanningReceipt(false);
   };
 
   const charityAmount = charityOverrideAmount ? parseFloat(charityOverrideAmount) || 0 : (parseFloat(amount) || 0) * (parseFloat(charityPct) || 0) / 100;
@@ -202,6 +229,15 @@ export default function TransactionsPage() {
       return;
     }
 
+    if (govProgramEnabled) {
+      if (!govProgramName.trim()) { setAddError("Enter the program name."); return; }
+      if (!govProgramFull) {
+        const gAmt = parseFloat(govProgramAmount);
+        if (!gAmt || gAmt > amt) { setAddError("Enter a valid program amount — it can't be more than the total."); return; }
+      }
+    }
+    const finalGovProgramAmount = govProgramEnabled ? (govProgramFull ? amt : parseFloat(govProgramAmount)) : null;
+
     let rate = 1;
     let currencyCode: string | null = null;
     if (entryCurrency !== baseCurrency) {
@@ -223,6 +259,7 @@ export default function TransactionsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type, category, amount: finalAmount1, date, tags: tags || null, vendor: vendor || null, boughtFor: boughtFor || null, receiptImage,
+        govProgramName: govProgramEnabled ? govProgramName : null, govProgramAmount: finalGovProgramAmount,
         currencyCode, originalAmount: currencyCode ? amt1 : null,
         paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
         bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
@@ -266,6 +303,8 @@ export default function TransactionsPage() {
     }
 
     setAmount(""); setTags(""); setVendor(""); setBoughtFor(""); setReceiptImage(null);
+    setReceiptScanNote("");
+    setGovProgramEnabled(false); setGovProgramName(""); setGovProgramAmount(""); setGovProgramFull(true);
     setSplitEnabled(false); setSplitCategory2(""); setSplitAmount2("");
     setCategoryAutoFilled(false); setAddError("");
     setCharityEligible(null); setCharityOverrideAmount(""); setIsCharityPayment(null); setCharityGiveAmount(""); setCharityGiveKind("cash");
@@ -287,6 +326,8 @@ export default function TransactionsPage() {
     setEditTxnDate(t.date.slice(0, 10));
     setEditTxnVendor(t.vendor || "");
     setEditTxnBoughtFor(t.boughtFor || "");
+    setEditTxnGovProgramName(t.govProgramName || "");
+    setEditTxnGovProgramAmount(t.govProgramAmount != null ? String(t.govProgramAmount) : "");
     setEditTxnTags(t.tags || "");
     setEditPaymentMethod(t.paymentMethod || "cash");
     setEditPayCardId(t.cardId || "");
@@ -305,6 +346,8 @@ export default function TransactionsPage() {
         date: editTxnDate,
         vendor: editTxnVendor || null,
         boughtFor: editTxnBoughtFor || null,
+        govProgramName: editTxnGovProgramName || null,
+        govProgramAmount: editTxnGovProgramName ? (parseFloat(editTxnGovProgramAmount) || parseFloat(editTxnAmount) || 0) : null,
         tags: editTxnTags || null,
         paymentMethod: editPaymentMethod,
         cardId: editPaymentMethod === "card" ? editPayCardId || null : null,
@@ -473,6 +516,9 @@ export default function TransactionsPage() {
         <button type="button" className={splitEnabled ? "btn" : "btn-outline"} onClick={() => setSplitEnabled((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
           {splitEnabled ? "Cancel split" : "Split into 2 accounts"}
         </button>
+        <button type="button" className={govProgramEnabled ? "btn" : "btn-outline"} onClick={() => setGovProgramEnabled((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
+          {govProgramEnabled ? "Cancel program payment" : "Paid by a federal program"}
+        </button>
         <div style={{ display: "flex", gap: 4 }}>
           {["Joint", "Personal"].map((label) => {
             const has = tags.split(",").map((t) => t.trim().toLowerCase()).includes(label.toLowerCase());
@@ -525,9 +571,11 @@ export default function TransactionsPage() {
         </div>
         <div>
           <label className="btn-outline" style={{ display: "inline-block", cursor: "pointer" }}>
-            {uploading ? "…" : receiptImage ? "Photo added ✓" : "Add receipt"}
-            <input type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
+            {uploading ? "…" : receiptImage ? "Photo added ✓" : "Scan receipt"}
+            <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: "none" }} />
           </label>
+          {scanningReceipt && <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 4 }}>Reading receipt…</div>}
+          {!scanningReceipt && receiptScanNote && <div style={{ fontSize: 11.5, color: "#5B7B7A", marginTop: 4, maxWidth: 220 }}>{receiptScanNote}</div>}
         </div>
         <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
         {addError && (
@@ -581,6 +629,37 @@ export default function TransactionsPage() {
                 <span style={{ color: "#9C4221" }}>This has to be less than the total amount.</span>
               ) : (
                 <>"{category || "First account"}" gets <span className="num">${(parseFloat(amount) - parseFloat(splitAmount2)).toFixed(2)}</span>, "{splitCategory2 || "second account"}" gets <span className="num">${parseFloat(splitAmount2).toFixed(2)}</span></>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {govProgramEnabled && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Paid by a federal or state program</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <button type="button" className={govProgramFull ? "btn" : "btn-outline"} onClick={() => setGovProgramFull(true)} style={{ padding: "6px 16px", fontSize: 12.5 }}>Full purchase</button>
+            <button type="button" className={!govProgramFull ? "btn" : "btn-outline"} onClick={() => setGovProgramFull(false)} style={{ padding: "6px 16px", fontSize: 12.5 }}>Only part of it</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={govProgramName} onChange={(e) => setGovProgramName(e.target.value)} placeholder="Program name, e.g. SNAP, WIC" style={{ width: 200 }} />
+            {!govProgramFull && (
+              <input type="number" step="0.01" value={govProgramAmount} onChange={(e) => setGovProgramAmount(e.target.value)} placeholder="Amount covered" style={{ width: 160 }} />
+            )}
+          </div>
+          {govProgramName && (
+            <div style={{ fontSize: 12, color: "#5B5540", marginTop: 8 }}>
+              {govProgramFull ? (
+                <>The full ${amount || "0.00"} was covered by <strong>{govProgramName}</strong>.</>
+              ) : govProgramAmount && amount ? (
+                parseFloat(govProgramAmount) > parseFloat(amount) ? (
+                  <span style={{ color: "#9C4221" }}>This can't be more than the total amount.</span>
+                ) : (
+                  <><strong>{govProgramName}</strong> covered <span className="num">${parseFloat(govProgramAmount).toFixed(2)}</span> of the ${amount} total — the rest was paid another way.</>
+                )
+              ) : (
+                <>Enter how much {govProgramName} covered.</>
               )}
             </div>
           )}
@@ -675,6 +754,10 @@ export default function TransactionsPage() {
                   style={{ width: 160 }}
                 />
                 <input value={editTxnBoughtFor} onChange={(e) => setEditTxnBoughtFor(e.target.value)} placeholder="Bought for (optional)" style={{ width: 150 }} />
+                <input value={editTxnGovProgramName} onChange={(e) => setEditTxnGovProgramName(e.target.value)} placeholder="Program (optional), e.g. SNAP" style={{ width: 160 }} />
+                {editTxnGovProgramName && (
+                  <input type="number" step="0.01" value={editTxnGovProgramAmount} onChange={(e) => setEditTxnGovProgramAmount(e.target.value)} placeholder="Amount covered" style={{ width: 140 }} />
+                )}
                 <input value={editTxnTags} onChange={(e) => setEditTxnTags(e.target.value)} placeholder="Tags (comma separated)" style={{ flex: 1, minWidth: 140 }} />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
@@ -721,7 +804,7 @@ export default function TransactionsPage() {
                 />
               )}
               <button onClick={() => startEditTxn(t)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
-                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.boughtFor && <span className="pill" style={{ marginLeft: 6 }}>for {t.boughtFor}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}{t.splitGroupId && <span className="pill" style={{ marginLeft: 6 }}>split</span>}</div>
+                <div>{t.category}{t.vendor && <span style={{ color: "#8A8370" }}> · {t.vendor}</span>}{t.boughtFor && <span className="pill" style={{ marginLeft: 6 }}>for {t.boughtFor}</span>}{t.govProgramName && <span className="pill" style={{ marginLeft: 6 }}>{t.govProgramName}{t.govProgramAmount && t.govProgramAmount < t.amount ? ` $${t.govProgramAmount.toFixed(2)}` : " (full)"}</span>}{t.tags && <span className="pill" style={{ marginLeft: 6 }}>{t.tags.split(",")[0].trim()}</span>}{t.splitGroupId && <span className="pill" style={{ marginLeft: 6 }}>split</span>}</div>
                 <div style={{ fontSize: 11, color: "#8A8370" }}>
                   {t.date.slice(0, 10)}
                   {paymentLabel(t, cardsList, bankAccountsList) && (

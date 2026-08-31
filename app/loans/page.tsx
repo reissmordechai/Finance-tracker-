@@ -18,6 +18,42 @@ function payoffMonths(balance: number, apr: number, payment: number): { months: 
   return { months, totalInterest };
 }
 
+// Simulates paying off several loans at once: minimums on everything, plus
+// an extra monthly amount funneled entirely at whichever loan is "first" in
+// the strategy's fixed order — once that one hits zero, its freed-up
+// minimum + the extra rolls onto the next loan in line.
+function simulateStrategy(loansList: any[], extraMonthly: number, strategy: "snowball" | "avalanche") {
+  const order = [...loansList].sort((a, b) =>
+    strategy === "snowball" ? a.balance - b.balance : (b.apr || 0) - (a.apr || 0)
+  );
+  const working = order.map((l) => ({ id: l.id, name: l.name, bal: l.balance, apr: l.apr || 0, minPayment: l.minPayment || 0 }));
+  let months = 0;
+  let totalInterest = 0;
+  while (working.some((l) => l.bal > 0) && months < 600) {
+    months++;
+    for (const l of working) {
+      if (l.bal <= 0) continue;
+      const interest = (l.bal * l.apr) / 100 / 12;
+      totalInterest += interest;
+      l.bal += interest;
+    }
+    let pool = extraMonthly;
+    for (const l of working) {
+      if (l.bal <= 0) continue;
+      const pay = Math.min(l.bal, l.minPayment);
+      l.bal -= pay;
+    }
+    for (const l of working) {
+      if (pool <= 0) break;
+      if (l.bal <= 0) continue;
+      const pay = Math.min(l.bal, pool);
+      l.bal -= pay;
+      pool -= pay;
+    }
+  }
+  return { months, totalInterest, order: order.map((l) => l.name) };
+}
+
 export default function LoansPage() {
   const [loans, setLoans] = useState<any[]>([]);
   const [name, setName] = useState("");
@@ -36,6 +72,7 @@ export default function LoansPage() {
   const [editMinPayment, setEditMinPayment] = useState("");
   const [editDueDay, setEditDueDay] = useState("");
   const [addError, setAddError] = useState("");
+  const [extraMonthly, setExtraMonthly] = useState("");
 
   const load = () => fetch("/api/loans").then((r) => r.json()).then(setLoans);
   useEffect(() => { load(); }, []);
@@ -107,6 +144,39 @@ export default function LoansPage() {
           <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
         )}
       </div>
+
+      {loans.filter((l) => l.balance > 0 && l.minPayment).length >= 2 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Debt payoff strategy</div>
+          <p style={{ fontSize: 12.5, color: "#8A8370", marginTop: 0, marginBottom: 10 }}>
+            Compares paying minimums everywhere with any extra you can put toward one loan at a time — smallest balance first (snowball) vs. highest interest rate first (avalanche).
+          </p>
+          <label style={{ fontSize: 11, color: "#8A8370" }}>Extra monthly amount available (beyond minimums)</label>
+          <input type="number" value={extraMonthly} onChange={(e) => setExtraMonthly(e.target.value)} style={{ width: 160, display: "block", marginBottom: 12 }} />
+          {extraMonthly && parseFloat(extraMonthly) >= 0 && (() => {
+            const eligible = loans.filter((l) => l.balance > 0 && l.minPayment);
+            const extra = parseFloat(extraMonthly) || 0;
+            const snowball = simulateStrategy(eligible, extra, "snowball");
+            const avalanche = simulateStrategy(eligible, extra, "avalanche");
+            const cheaper = avalanche.totalInterest <= snowball.totalInterest ? "avalanche" : "snowball";
+            return (
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {[{ key: "snowball", label: "Snowball", result: snowball }, { key: "avalanche", label: "Avalanche", result: avalanche }].map(({ key, label, result }) => (
+                  <div key={key} style={{ flex: 1, minWidth: 220, background: "#FBF9F2", border: key === cheaper ? "1px solid #2F6B4F" : "1px solid #E4DEC9", borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{label} {key === cheaper && <span style={{ color: "#2F6B4F", fontSize: 11 }}>· less interest</span>}</div>
+                    <div style={{ fontSize: 13 }}>Debt-free in <strong>{result.months} mo</strong> (~{(result.months / 12).toFixed(1)} yrs)</div>
+                    <div style={{ fontSize: 13 }}>Total interest: <strong className="num">${result.totalInterest.toFixed(2)}</strong></div>
+                    <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 6 }}>Order: {result.order.join(" → ")}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          {loans.some((l) => l.balance > 0 && !l.minPayment) && (
+            <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 10 }}>Some loans are missing a minimum payment, so they're left out of this comparison — add one under "Edit details" to include them.</div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 12 }}>
         {loans.map((l) => {

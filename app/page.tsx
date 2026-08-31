@@ -20,7 +20,7 @@ export default async function Dashboard() {
   // All of these are independent of each other, so fetch them concurrently
   // instead of one-at-a-time — this alone roughly cuts Dashboard load time
   // to the length of the single slowest query instead of the sum of all of them.
-  const [holdings, bankAccounts, cards, loans, transactions, netWorthHistory, recentTxns, budgets, charityEntries, otherAccounts] = await Promise.all([
+  const [holdings, bankAccounts, cards, loans, transactions, netWorthHistory, recentTxns, budgets, charityEntries, otherAccounts, recurringRules] = await Promise.all([
     prisma.holding.findMany({ where: { userId } }),
     prisma.bankAccount.findMany({ where: { userId } }),
     prisma.card.findMany({ where: { userId }, include: { payments: true } }),
@@ -31,6 +31,7 @@ export default async function Dashboard() {
     prisma.budget.findMany({ where: { userId } }),
     prisma.charityEntry.findMany({ where: { userId } }),
     prisma.otherAccount.findMany({ where: { userId } }),
+    prisma.recurring.findMany({ where: { userId, paused: false } }),
   ]);
 
   const totalHoldings = holdings.reduce((s, h) => s + h.currentValue, 0);
@@ -76,9 +77,69 @@ export default async function Dashboard() {
     return { category: cat, spent, avg, pctChange };
   }).filter((a) => a.avg >= 20 && a.pctChange >= 30);
 
+  // Upcoming payments in the next 14 days — recurring bills, card due dates,
+  // and loan due dates, all combined into one sorted reminder list.
+  function addInterval(date: Date, freq: string): Date {
+    const d = new Date(date.getTime());
+    if (freq === "weekly") d.setDate(d.getDate() + 7);
+    else if (freq === "yearly") d.setFullYear(d.getFullYear() + 1);
+    else d.setMonth(d.getMonth() + 1);
+    return d;
+  }
+  function nextMonthlyOccurrence(day: number): Date {
+    const d = new Date(now.getFullYear(), now.getMonth(), day);
+    if (d < now) d.setMonth(d.getMonth() + 1);
+    return d;
+  }
+  const horizon = new Date(now.getTime());
+  horizon.setDate(horizon.getDate() + 14);
+
+  type Upcoming = { name: string; amount: number; date: Date; kind: string };
+  const upcoming: Upcoming[] = [];
+
+  recurringRules.forEach((r) => {
+    let next = r.lastGenerated ? addInterval(r.lastGenerated, r.frequency) : new Date(r.startDate);
+    if (r.endDate && next > r.endDate) return;
+    if (next >= now && next <= horizon) {
+      upcoming.push({ name: r.category, amount: r.amount, date: next, kind: r.type === "income" ? "income" : "bill" });
+    }
+  });
+  cards.forEach((c) => {
+    if (!c.dueDay || c.amountDue <= 0) return;
+    const next = nextMonthlyOccurrence(c.dueDay);
+    if (next <= horizon) upcoming.push({ name: `${c.name} (card)`, amount: c.amountDue, date: next, kind: "card" });
+  });
+  loans.forEach((l) => {
+    if (!l.dueDay || !l.minPayment) return;
+    const next = nextMonthlyOccurrence(l.dueDay);
+    if (next <= horizon) upcoming.push({ name: `${l.name} (loan)`, amount: l.minPayment, date: next, kind: "loan" });
+  });
+  upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
+
   return (
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Finance Tracker</h1>
+
+      {upcoming.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Upcoming in the next 14 days</div>
+          {upcoming.map((u, i) => {
+            const daysAway = Math.round((u.date.getTime() - now.getTime()) / 86400000);
+            const soon = daysAway <= 3;
+            return (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i > 0 ? "1px solid #EFEADC" : "none", fontSize: 13 }}>
+                <span>
+                  {u.name}
+                  <span style={{ color: soon ? "#9C4221" : "#8A8370", marginLeft: 8, fontSize: 11.5 }}>
+                    {daysAway <= 0 ? "today" : daysAway === 1 ? "tomorrow" : `in ${daysAway} days`}
+                  </span>
+                </span>
+                <span className="num" style={{ fontWeight: 600, color: u.kind === "income" ? "#2F6B4F" : "#0F3D2E" }}>${u.amount.toFixed(2)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {cardsDue.length > 0 && (
         <div className="card" style={{ marginBottom: 16, background: "#FBF3E1", borderColor: "#E8D2A0" }}>

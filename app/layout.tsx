@@ -1,5 +1,6 @@
 import "./globals.css";
 import Nav from "./components/Nav";
+import QuickAddExpense from "./components/QuickAddExpense";
 
 export const metadata = {
   title: "Finance Tracker",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Nav />
         {children}
+        <QuickAddExpense />
       </body>
     </html>
   );

@@ -51,6 +51,8 @@ model Transaction {
   note           String?
   vendor         String?
   boughtFor      String?  // optional — who this purchase was for, e.g. "Wife", "Dan"
+  govProgramName   String? // optional — federal/state program that paid toward this, e.g. "SNAP", "WIC"
+  govProgramAmount Float?  // amount of the total covered by that program (may be less than the full amount)
   paymentMethod  String   @default("cash") // "cash" | "debit" | "card" | "check" | "other"
   paymentOther   String?  // free-text description when paymentMethod = "other"
   cardId         String?
