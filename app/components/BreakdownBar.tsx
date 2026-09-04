@@ -1,24 +1,56 @@
 "use client";
 
-export default function BreakdownBar({ bank, holdings, debt }: { bank: number; holdings: number; debt: number }) {
-  const total = bank + holdings + debt;
+type Segment = { label: string; value: number; color: string };
+
+function CompositionBar({ title, segments }: { title: string; segments: Segment[] }) {
+  const shown = segments.filter((s) => s.value > 0);
+  const total = shown.reduce((s, seg) => s + seg.value, 0);
   if (total <= 0) return null;
-  const bankPct = (bank / total) * 100;
-  const holdingsPct = (holdings / total) * 100;
-  const debtPct = (debt / total) * 100;
 
   return (
-    <div style={{ marginTop: 14 }}>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 11.5, color: "#8A8370", marginBottom: 4 }}>{title}</div>
       <div style={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden" }}>
-        {bankPct > 0 && <div style={{ width: `${bankPct}%`, background: "#2F6B4F" }} />}
-        {holdingsPct > 0 && <div style={{ width: `${holdingsPct}%`, background: "#B8863E" }} />}
-        {debtPct > 0 && <div style={{ width: `${debtPct}%`, background: "#9C4221" }} />}
+        {shown.map((s) => (
+          <div key={s.label} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} title={s.label} />
+        ))}
       </div>
-      <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 11, color: "#8A8370", flexWrap: "wrap" }}>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: "#2F6B4F", marginRight: 4 }} />Bank {bankPct.toFixed(0)}%</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: "#B8863E", marginRight: 4 }} />Holdings {holdingsPct.toFixed(0)}%</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: "#9C4221", marginRight: 4 }} />Debt {debtPct.toFixed(0)}%</span>
+      <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 11, color: "#8A8370", flexWrap: "wrap" }}>
+        {shown.map((s) => (
+          <span key={s.label}>
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: s.color, marginRight: 4 }} />
+            {s.label} ${s.value.toFixed(0)} ({((s.value / total) * 100).toFixed(0)}%)
+          </span>
+        ))}
       </div>
+    </div>
+  );
+}
+
+export default function BreakdownBar({
+  bank, holdings, otherAssets, cardDebt, loanDebt, otherLiabilities,
+}: {
+  bank: number; holdings: number; otherAssets: number;
+  cardDebt: number; loanDebt: number; otherLiabilities: number;
+}) {
+  return (
+    <div>
+      <CompositionBar
+        title="What you own"
+        segments={[
+          { label: "Bank", value: bank, color: "#2F6B4F" },
+          { label: "Holdings", value: holdings, color: "#B8863E" },
+          { label: "Other assets", value: otherAssets, color: "#5B7B7A" },
+        ]}
+      />
+      <CompositionBar
+        title="What you owe"
+        segments={[
+          { label: "Cards", value: cardDebt, color: "#9C4221" },
+          { label: "Loans", value: loanDebt, color: "#C1662E" },
+          { label: "Other owed", value: otherLiabilities, color: "#B08968" },
+        ]}
+      />
     </div>
   );
 }

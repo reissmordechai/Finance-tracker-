@@ -301,3 +301,14 @@ model OtherAccount {
   note     String?
   parentId String? // set when this is a sub-account (e.g. "Loan from Dan" under "Personal Debts")
 }
+
+// Browser push-notification subscriptions, one row per device/browser the
+// person has enabled reminders on. Sent to daily by the reminders cron job.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}

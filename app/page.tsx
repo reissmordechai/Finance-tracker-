@@ -183,7 +183,7 @@ export default async function Dashboard() {
           {otherAssets > 0 && <div><div style={{ fontSize: 11, color: "#8A8370" }}>Other assets</div><div className="num" style={{ color: "#2F6B4F" }}>${otherAssets.toFixed(2)}</div></div>}
           {otherLiabilities > 0 && <div><div style={{ fontSize: 11, color: "#8A8370" }}>Other owed</div><div className="num" style={{ color: "#9C4221" }}>${otherLiabilities.toFixed(2)}</div></div>}
         </div>
-        <BreakdownBar bank={totalBank} holdings={totalHoldings} debt={totalDebt} />
+        <BreakdownBar bank={totalBank} holdings={totalHoldings} otherAssets={otherAssets} cardDebt={cardDebt} loanDebt={loanDebt} otherLiabilities={otherLiabilities} />
         <div style={{ marginTop: 14 }}>
           <LineChart points={chartPoints} />
         </div>

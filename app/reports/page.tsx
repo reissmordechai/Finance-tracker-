@@ -4,7 +4,9 @@ import BarChart from "../components/BarChart";
 
 export default function ReportsPage() {
   const [txns, setTxns] = useState<any[]>([]);
+  const [mode, setMode] = useState<"monthly" | "tax">("monthly");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [taxYear, setTaxYear] = useState(String(new Date().getFullYear()));
   const [trendCategory, setTrendCategory] = useState("");
   const [boughtForFilter, setBoughtForFilter] = useState("");
 
@@ -41,10 +43,80 @@ export default function ReportsPage() {
     return { label, value: Math.round(total * 100) / 100 };
   });
 
+  // Tax summary — pulls together tax withheld/collected (taxAmount per
+  // transaction) and anything tagged "tax deductible", for one selected year.
+  const yearTxns = scopedTxns.filter((t) => t.date.slice(0, 4) === taxYear);
+  const taxCollected = yearTxns.reduce((s, t) => s + (t.taxAmount || 0), 0);
+  const deductibleTxns = yearTxns.filter((t) =>
+    t.tags && t.tags.toLowerCase().split(",").map((s: string) => s.trim()).includes("tax deductible")
+  );
+  const deductibleTotal = deductibleTxns.reduce((s, t) => s + t.amount, 0);
+  const deductibleByCategory: Record<string, number> = {};
+  deductibleTxns.forEach((t) => { deductibleByCategory[t.category] = (deductibleByCategory[t.category] || 0) + t.amount; });
+  const sortedDeductible = Object.entries(deductibleByCategory).sort((a, b) => b[1] - a[1]);
+  const availableYears = Array.from(new Set(txns.map((t) => t.date.slice(0, 4)))).sort().reverse();
+
   return (
     <main className="page">
       <h1 style={{ color: "#0F3D2E" }}>Reports</h1>
 
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <button className={mode === "monthly" ? "btn" : "btn-outline"} onClick={() => setMode("monthly")} style={{ padding: "7px 16px", fontSize: 13 }}>Monthly</button>
+        <button className={mode === "tax" ? "btn" : "btn-outline"} onClick={() => setMode("tax")} style={{ padding: "7px 16px", fontSize: 13 }}>Tax summary</button>
+      </div>
+
+      {mode === "tax" ? (
+        <>
+          <div className="card" style={{ marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <select value={taxYear} onChange={(e) => setTaxYear(e.target.value)} style={{ width: 110 }}>
+              {(availableYears.includes(taxYear) ? availableYears : [taxYear, ...availableYears]).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 12, color: "#8A8370" }}>
+              "Deductible" totals come from transactions tagged <code>tax deductible</code>.
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <div className="card" style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 11, color: "#8A8370" }}>Tax collected/paid — {taxYear}</div>
+              <div className="num" style={{ fontSize: 22, fontWeight: 700, color: "#0F3D2E" }}>${taxCollected.toFixed(2)}</div>
+            </div>
+            <div className="card" style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 11, color: "#8A8370" }}>Deductible spending — {taxYear}</div>
+              <div className="num" style={{ fontSize: 22, fontWeight: 700, color: "#2F6B4F" }}>${deductibleTotal.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, marginBottom: 10 }}>Deductible spending by account</div>
+            {sortedDeductible.length === 0 ? (
+              <div style={{ color: "#8A8370" }}>Nothing tagged "tax deductible" in {taxYear} yet.</div>
+            ) : (
+              sortedDeductible.map(([cat, amt]) => (
+                <div key={cat} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #EFEADC" }}>
+                  <span>{cat}</span>
+                  <span className="num" style={{ fontWeight: 600 }}>${amt.toFixed(2)}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {deductibleTxns.length > 0 && (
+            <div className="card">
+              <div style={{ fontWeight: 600, marginBottom: 10 }}>Deductible transactions ({deductibleTxns.length})</div>
+              {deductibleTxns.map((t) => (
+                <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderTop: "1px solid #EFEADC", fontSize: 12.5 }}>
+                  <span>{t.date.slice(0, 10)} · {t.category}{t.vendor && ` · ${t.vendor}`}</span>
+                  <span className="num">${t.amount.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+      <>
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         {boughtForOptions.length > 0 && (
@@ -94,6 +166,8 @@ export default function ReportsPage() {
           </div>
           <BarChart bars={trendBars} />
         </div>
+      )}
+      </>
       )}
     </main>
   );
