@@ -78,6 +78,7 @@ export default function TransactionsPage() {
   const [editPayCheckNumber, setEditPayCheckNumber] = useState("");
   const [editPaymentOther, setEditPaymentOther] = useState("");
   const [showItems, setShowItems] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [items, setItems] = useState<{ id: string; name: string; qty: string; unit: string; unitPrice: string; govCovered: boolean }[]>([]);
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [govProgramEnabled, setGovProgramEnabled] = useState(false);
@@ -153,6 +154,14 @@ export default function TransactionsPage() {
     setCharityEligible(null); setIsCharityPayment(null);
     if (!catsForType.find((c) => c.name === category)) setCategory(catsForType[0]?.name || "");
   }, [type, categories]);
+
+  // Auto-expand "More details" if anything in there is already in use, so
+  // an in-progress split/receipt/payment-method choice never gets hidden.
+  useEffect(() => {
+    if (vendor || boughtFor || tags || showItems || splitEnabled || govProgramEnabled || paymentMethod !== "cash" || receiptImage) {
+      setShowMore(true);
+    }
+  }, [vendor, boughtFor, tags, showItems, splitEnabled, govProgramEnabled, paymentMethod, receiptImage]);
 
   // When a vendor is chosen (exact match to an existing vendor), suggest the
   // account most often used with them in the past — still fully editable.
@@ -498,6 +507,24 @@ export default function TransactionsPage() {
             <div style={{ fontSize: 10.5, color: "#B0A88E", marginTop: 2 }}>usual account for this vendor</div>
           )}
         </div>
+        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
+        {voice.supported && (
+          <button type="button" className={voice.listening ? "btn" : "btn-outline"} onClick={startVoice} style={{ padding: "9px 12px" }} title="Speak amount and account">
+            {voice.listening ? "🎙️ Listening…" : "🎙️"}
+          </button>
+        )}
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
+        <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
+        <button type="button" onClick={() => setShowMore((s) => !s)} style={{ border: "none", background: "none", color: "#5B7B7A", fontSize: 12.5, cursor: "pointer", textDecoration: "underline", padding: "9px 4px" }}>
+          {showMore ? "Fewer details" : "More details (vendor, tags, split, receipt…)"}
+        </button>
+        {addError && (
+          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
+        )}
+      </div>
+
+      {showMore && (
+      <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
           <Autocomplete
             value={vendor}
@@ -517,16 +544,9 @@ export default function TransactionsPage() {
           />
         </div>
         <input value={boughtFor} onChange={(e) => setBoughtFor(e.target.value)} placeholder="Bought for (optional)" style={{ width: 150 }} />
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" style={{ width: 110 }} />
         <select value={entryCurrency} onChange={(e) => setEntryCurrency(e.target.value)} style={{ width: 90 }}>
           {Array.from(new Set([baseCurrency, "USD", "EUR", "GBP", "ILS", "CAD"])).map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        {voice.supported && (
-          <button type="button" className={voice.listening ? "btn" : "btn-outline"} onClick={startVoice} style={{ padding: "9px 12px" }} title="Speak amount and account">
-            {voice.listening ? "🎙️ Listening…" : "🎙️"}
-          </button>
-        )}
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags (comma separated)" style={{ width: 180 }} />
         <button type="button" className={showItems ? "btn" : "btn-outline"} onClick={() => setShowItems((s) => !s)} style={{ padding: "9px 12px", fontSize: 13 }}>
           {showItems ? "Hide items" : "+ Itemize"}
@@ -595,11 +615,8 @@ export default function TransactionsPage() {
           {scanningReceipt && <div style={{ fontSize: 11.5, color: "#8A8370", marginTop: 4 }}>Reading receipt…</div>}
           {!scanningReceipt && receiptScanNote && <div style={{ fontSize: 11.5, color: "#5B7B7A", marginTop: 4, maxWidth: 220 }}>{receiptScanNote}</div>}
         </div>
-        <button className="btn" onClick={add} disabled={converting}>{converting ? "Converting…" : "Add"}</button>
-        {addError && (
-          <div style={{ width: "100%", fontSize: 12.5, color: "#9C4221", fontWeight: 500 }}>{addError}</div>
-        )}
       </div>
+      )}
 
       {showItems && (
         <div className="card" style={{ marginBottom: 16 }}>
