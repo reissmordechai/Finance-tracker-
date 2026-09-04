@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       cardId: body.cardId || null,
       bankAccountId: body.bankAccountId || null,
       checkNumber: body.checkNumber || null,
+      checkCleared: body.paymentMethod === "check" ? (body.checkCleared ?? false) : null,
       taxRate: body.tax?.rate ?? null,
       taxAmount: body.tax?.amount ?? null,
       receiptImage: body.receiptImage || null,

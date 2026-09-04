@@ -35,9 +35,17 @@ export default function BankAccountsCard() {
   const [addError, setAddError] = useState("");
   const [transferError, setTransferError] = useState("");
   const [convertedTotal, setConvertedTotal] = useState<number | null>(null);
+  const [pendingChecksByAccount, setPendingChecksByAccount] = useState<Record<string, number>>({});
 
   const load = () => {
     fetch("/api/bankaccounts").then((r) => r.json()).then(setAccounts);
+    fetch("/api/transactions").then((r) => r.json()).then((txns: any[]) => {
+      const map: Record<string, number> = {};
+      txns.filter((t) => t.paymentMethod === "check" && !t.checkCleared && t.bankAccountId).forEach((t) => {
+        map[t.bankAccountId] = (map[t.bankAccountId] || 0) + t.amount;
+      });
+      setPendingChecksByAccount(map);
+    });
     fetch("/api/charity").then((r) => r.json()).then((entries: any[]) => {
       const owed = entries.filter((e) => e.type === "owed").reduce((s, e) => s + e.amount, 0);
       const given = entries.filter((e) => e.type === "given").reduce((s, e) => s + e.amount, 0);
@@ -216,6 +224,11 @@ export default function BankAccountsCard() {
                 {showEstimate && (
                   <div style={{ fontSize: 11, color: "#B0A88E", marginTop: 3, textAlign: "right" }}>
                     ~${estimated.toFixed(2)} estimated today with interest — confirm your real balance when you check your statement
+                  </div>
+                )}
+                {pendingChecksByAccount[a.id] > 0 && (
+                  <div style={{ fontSize: 11, color: "#9C4221", marginTop: 3, textAlign: "right" }}>
+                    ${pendingChecksByAccount[a.id].toFixed(2)} in pending checks — <a href="/checks" style={{ color: "#9C4221" }}>view</a>
                   </div>
                 )}
               </div>

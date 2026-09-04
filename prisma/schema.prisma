@@ -58,6 +58,7 @@ model Transaction {
   cardId         String?
   bankAccountId  String?
   checkNumber    String?
+  checkCleared   Boolean? // only meaningful when paymentMethod = "check" — true once confirmed cleared by the bank
   taxRate        Float?
   taxAmount      Float?
   receiptImage   String?  // base64 or a URL if you move to real file storage

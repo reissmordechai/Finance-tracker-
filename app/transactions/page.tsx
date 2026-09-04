@@ -224,6 +224,11 @@ export default function TransactionsPage() {
       return;
     }
 
+    if (paymentMethod === "check" && !payBankAccountId) {
+      setAddError("Choose which account the check was written from.");
+      return;
+    }
+
     const splitAmt2 = splitEnabled ? parseFloat(splitAmount2) : 0;
     if (splitEnabled && (!splitCategory2 || !splitAmt2 || splitAmt2 >= amt)) {
       setAddError("Fix the split amounts before adding — the second account's amount must be less than the total.");
@@ -273,8 +278,9 @@ export default function TransactionsPage() {
         govProgramName: govProgramEnabled ? govProgramName : null, govProgramAmount: finalGovProgramAmount,
         currencyCode, originalAmount: currencyCode ? amt1 : null,
         paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
-        bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
+        bankAccountId: (paymentMethod === "debit" || paymentMethod === "check") ? payBankAccountId || null : null,
         checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
+        checkCleared: paymentMethod === "check" ? false : null,
         paymentOther: paymentMethod === "other" ? paymentOther || null : null,
         items: validItems.map((it) => ({ name: it.name, qty: parseFloat(it.qty) || 0, unit: it.unit || "each", unitPrice: parseFloat(it.unitPrice) || 0, govCovered: it.govCovered })),
         splitGroupId, splitIndex: splitGroupId ? 0 : null, splitCount: splitGroupId ? 2 : null,
@@ -289,8 +295,9 @@ export default function TransactionsPage() {
           type, category: splitCategory2, amount: finalAmount2, date, tags: tags || null, vendor: vendor || null, boughtFor: boughtFor || null,
           currencyCode, originalAmount: currencyCode ? splitAmt2 : null,
           paymentMethod, cardId: paymentMethod === "card" ? payCardId || null : null,
-          bankAccountId: paymentMethod === "debit" ? payBankAccountId || null : null,
+          bankAccountId: (paymentMethod === "debit" || paymentMethod === "check") ? payBankAccountId || null : null,
           checkNumber: paymentMethod === "check" ? payCheckNumber || null : null,
+          checkCleared: paymentMethod === "check" ? false : null,
           paymentOther: paymentMethod === "other" ? paymentOther || null : null,
           splitGroupId, splitIndex: 1, splitCount: 2,
         }),
@@ -567,9 +574,9 @@ export default function TransactionsPage() {
               {cardsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
-          {paymentMethod === "debit" && (
+          {(paymentMethod === "debit" || paymentMethod === "check") && (
             <select value={payBankAccountId} onChange={(e) => setPayBankAccountId(e.target.value)} style={{ width: 160 }}>
-              <option value="">Which account?</option>
+              <option value="">{paymentMethod === "check" ? "Which account? (required)" : "Which account?"}</option>
               {bankAccountsList.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           )}

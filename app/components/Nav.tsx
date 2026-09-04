@@ -17,6 +17,7 @@ const groups = [
       { href: "/cards", label: "Cards" },
       { href: "/loans", label: "Loans" },
       { href: "/other-accounts", label: "Accounts" },
+      { href: "/checks", label: "Checks" },
       { href: "/holdings", label: "Holdings" },
       { href: "/market", label: "Market" },
     ],
