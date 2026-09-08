@@ -4,6 +4,7 @@ import Link from "next/link";
 import ConfirmDeleteButton from "../components/ConfirmDeleteButton";
 import ConfirmSaveButton from "../components/ConfirmSaveButton";
 import NotificationToggle from "../components/NotificationToggle";
+import ChangePasswordForm from "../components/ChangePasswordForm";
 
 export default function SettingsPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -275,6 +276,11 @@ export default function SettingsPage() {
           )
         ))}
         {profiles.length === 0 && <div style={{ color: "#8A8370" }}>No tax profiles yet.</div>}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Change password</div>
+        <ChangePasswordForm />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
