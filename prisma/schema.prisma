@@ -313,3 +313,14 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now())
 }
+
+// Short-lived tokens for the "forgot password" email flow. One row per
+// requested reset; expires in an hour and can only be used once.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}

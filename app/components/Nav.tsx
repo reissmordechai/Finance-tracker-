@@ -74,7 +74,7 @@ export default function Nav() {
 
   useEffect(() => { setOpenGroup(null); }, [pathname]);
 
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/summary") return null;
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/summary" || pathname === "/forgot-password" || pathname === "/reset-password") return null;
 
   const logout = async () => {
     await fetch("/api/auth", { method: "DELETE" });

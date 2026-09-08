@@ -60,8 +60,11 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="Password"
-          style={{ width: "100%", marginBottom: 10 }}
+          style={{ width: "100%", marginBottom: 6 }}
         />
+        <div style={{ textAlign: "right", marginBottom: 10 }}>
+          <Link href="/forgot-password" style={{ color: "#8A8370", fontSize: 12.5 }}>Forgot password?</Link>
+        </div>
         {error && <div style={{ color: "#9C4221", fontSize: 13, marginBottom: 10, fontWeight: 500 }}>{error}</div>}
         <button className="btn" onClick={submit} disabled={loading} style={{ width: "100%" }}>
           {loading ? "Checking…" : "Log in"}

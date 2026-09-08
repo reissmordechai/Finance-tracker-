@@ -19,7 +19,7 @@ export default function QuickAddExpense() {
     }
   }, [open, categories.length]);
 
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/summary") return null;
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/summary" || pathname === "/forgot-password" || pathname === "/reset-password") return null;
 
   const reset = () => { setAmount(""); setCategory(""); setPaymentMethod("cash"); setError(""); };
 
